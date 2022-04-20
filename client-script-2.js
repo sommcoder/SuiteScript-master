@@ -162,7 +162,7 @@ define(["N/ui/dialog"], function (dialog) {
     try {
       // assign a reference of current record
       currEmpRecord = context.currentRecord;
-      if (currEmpRecord !== "employee") return;
+      if (currEmpRecord !== "employee") return true;
       // record values:
       departmentValue = currEmpRecord.getValue({
         fieldId: "department",
@@ -174,11 +174,7 @@ define(["N/ui/dialog"], function (dialog) {
         fieldId: "location",
       });
 
-      if (
-        departmentValue === false ||
-        classValue === false ||
-        locationValue === false
-      ) {
+      if (!departmentValue || !classValue || !locationValue) {
         dialog.alert({
           title: "Fields Missing",
           message:
