@@ -8,55 +8,100 @@
  *@NApiVersion 2.x
  *@NScriptType ClientScript
  */
-define(["N/ui/dialog"], function (ui) {
+define(["N/ui/dialog"], function (dialog) {
   // record and currentrecord modules are auto loaded with a Client Script declared in the JS Docs apparently???
 
-  // variable list
+  // global function variable list
+  // var trigger = true;
   var currEmpRecord;
+  var fieldIdChanged;
+  var validationInput;
+
   var departmentField;
-  var locationField;
   var classField;
+  var locationField;
+
   var departmentValue;
-  var locationValue;
   var classValue;
+  var locationValue;
 
   function pageInit(context) {
-    if (context.mode !== "edit") return;
     try {
+      if (context.mode !== "edit") return;
+      // assign a reference of current record
       currEmpRecord = context.currentRecord;
-      // department field
+
+      // field initial settings:
       departmentField = currEmpRecord.getField({
         fieldId: "department",
       });
       departmentField.isDisabled = false;
-
-      // class field
       classField = currEmpRecord.getField({
         fieldId: "class",
       });
       classField.isDisabled = true;
-
-      // location field
       locationField = currEmpRecord.getField({
         fieldId: "location",
       });
-      console.log(location);
       locationField.isDisabled = true;
+    } catch (err) {
+      console.log("error:", err);
+    }
+  }
+  function validateField(context) {
+    try {
+      currEmpRecord = context.currentRecord;
+      validationInput = context.fieldId;
+
+      departmentValue = currEmpRecord.getValue({
+        fieldId: "department",
+      });
+      locationValue = currEmpRecord.getValue({
+        fieldId: "location",
+      });
+
+      // record fields:
+      departmentField = currEmpRecord.getField({
+        fieldId: "department",
+      });
+      classField = currEmpRecord.getField({
+        fieldId: "class",
+      });
+      locationField = currEmpRecord.getField({
+        fieldId: "location",
+      });
+
+      if (
+        validationInput === "department" ||
+        validationInput === "class" ||
+        validationInput === "location"
+      ) {
+        if (
+          departmentValue !== "2" &&
+          departmentValue !== "1" &&
+          locationValue === "14"
+        ) {
+          dialog.alert({
+            title: "location option limitation",
+            message:
+              "If NOT Sales or Engineering, location CANNOT be Century City",
+          });
+          currEmpRecord.setValue({
+            fieldId: "location",
+            value: "",
+          });
+          return true; // cannot validate!
+        } else return true;
+      } else return true;
     } catch (err) {
       console.log(err);
     }
   }
-
   function fieldChanged(context) {
-    console.log(context.fieldId);
-    if (
-      context.fieldId !== "department" &&
-      context.fieldId !== "class" &&
-      context.fieldId !== "location"
-    )
-      return;
-
     try {
+      // assign a reference of current record
+      fieldIdChanged = context.fieldId;
+
       currEmpRecord = context.currentRecord;
       // record fields:
       departmentField = currEmpRecord.getField({
@@ -80,23 +125,44 @@ define(["N/ui/dialog"], function (ui) {
         fieldId: "location",
       });
 
-      console.log(departmentValue);
-      console.log(classValue);
-      console.log(locationValue);
+      // DEPARTMENT CONDITIONS
+      if (fieldIdChanged === "department" && departmentValue) {
+        // enable/disable class field:
+        classField.isDisabled = false;
 
-      departmentValue ? (classField.isDisabled = false) : "";
-      classValue ? (locationField.isDisabled = false) : "";
-
-      // ...and location can be anything BUT Century City
+        // department engineering OR department sales set class to consulting & project mgmt and location to Century City.
+        //Disable class and location as they MUST be set this way
+        if (departmentValue === "2" || departmentValue === "1") {
+          currEmpRecord.setValue({
+            fieldId: "class",
+            value: 2,
+          });
+          classField.isDisabled = true;
+          currEmpRecord.setValue({
+            fieldId: "location",
+            value: 14,
+          });
+          locationField.isDisabled = true;
+        }
+      }
+      // CLASS CONDITIONS
+      if (
+        fieldIdChanged === "class" &&
+        classValue &&
+        departmentValue !== "2" &&
+        departmentValue !== "1"
+      )
+        locationField.isDisabled = false;
     } catch (err) {
       console.log(err);
     }
   }
 
   function saveRecord(context) {
-    if (context.currentRecord !== "employee") return;
     try {
+      // assign a reference of current record
       currEmpRecord = context.currentRecord;
+      if (currEmpRecord !== "employee") return;
       // record values:
       departmentValue = currEmpRecord.getValue({
         fieldId: "department",
@@ -109,28 +175,21 @@ define(["N/ui/dialog"], function (ui) {
       });
 
       if (
-        departmentValue !== true &&
-        classValue !== true &&
-        locationValue !== true
-      )
-        alert(
-          "you need to fill out the department, class & location fields before submitting!"
-        );
+        departmentValue === false ||
+        classValue === false ||
+        locationValue === false
+      ) {
+        dialog.alert({
+          title: "Fields Missing",
+          message:
+            "Ensure you've completed the department, class and location fields and in the correct sequence!",
+        });
+        return false;
+      } else return true;
     } catch (err) {
       console.log(err);
     }
   }
-
-  function validateField(context) {
-    try {
-      currEmpRecord = context.currentRecord;
-      var field = context.fieldId;
-      if (field === "department") console.log(field);
-    } catch (err) {
-      console.log(err);
-    }
-  }
-
   return {
     pageInit: pageInit,
     saveRecord: saveRecord,
