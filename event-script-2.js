@@ -18,7 +18,7 @@ define(["N/record", "N/search"], function (record, search) {
       const supervisorValue = context.newRecord.getValue({
         fieldId: "supervisor",
       });
-      if (supervisorValue === true) return; // if employee has supervisor, return.
+      if (supervisorValue) return; // if employee has supervisor, return.
       // search for CEO:
       let ceoSearch = search.create({
         type: "employee",

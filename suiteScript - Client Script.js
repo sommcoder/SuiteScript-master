@@ -15,10 +15,6 @@
  *@NApiVersion 2.x
  *@NScriptType ClientScript
  */
-/**
- *@NApiVersion 2.x
- *@NScriptType ClientScript
- */
 
 define(["N/runtime"], function (runtime) {
   var currRecord;
