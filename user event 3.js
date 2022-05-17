@@ -90,7 +90,7 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
           columns: ["subsidiarynohierarchy", "comments", "entityid", "email"], // return email
         });
 
-        let ceoSearchResults = ceoSearch.run().each((result) => {
+        ceoSearch.run().each((result) => {
           empRecord.setValue({
             fieldId: "supervisor",
             value: result.id,
@@ -116,31 +116,27 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
 
   function afterSubmit(context) {
     try {
-      const currUser = runtime.getCurrentUser();
+      if (recordType !== "create") return;
+
+      let currUser = runtime.getCurrentUser();
+      let currUserName = currUser.name;
+      let newEmpRecordName = empRecord.entityid;
       let timeStamp = new Date().getUTCMilliseconds();
 
       log.debug({
         title: "currUser:",
-        details: [currUser, timeStamp],
+        details: [currUser, timeStamp, currUserName],
       });
 
-      // email.send({
-      //   author: currUser,
-      //   body:
-      //     "Hello" +
-      //     supervisorId +
-      //     "\n\n a new employee record has been created for " +
-      //     newEmp +
-      //     ". Please ensure that the information entered on their record is correct. \n\n" +
-      //     "HYPERLINK to the newEmp record \n\n" +
-      //     "added to NetSuite at:" +
-      //     timeStamp,
-      //   recipients: supervisorId,
-      //   subject: "new employee introduction -" + newEmp,
-      //   relatedRecords: {
-      //     customRecord: newEmp,
-      //   },
-      // });
+      email.send({
+        author: currUserName,
+        body: `Hello ${supervisorId} \n\nA new employee record has been created for ${newEmpRecordName}.\nPlease ensure that the information entered on their record is correct.\nClick to view employee record:<a href="https://tstdrv2338496.app.netsuite.com/app/common/entity/employee.nl?id=3111&whence=&cmid=1652818365763_3384">${newEmpRecordName}}</a>`,
+        recipients: supervisorId,
+        subject: `New Employee Introduction : ${newEmpRecordName}`,
+        relatedRecords: {
+          customRecord: newEmpRecordName,
+        },
+      });
     } catch (err) {
       log.debug({
         title: "before submit err catch",
