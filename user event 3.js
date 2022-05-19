@@ -16,6 +16,7 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
   // global references:
   var ceo;
   var newEmp;
+  var newEmpId;
   var empRecord;
   var recordType;
   var supervisorId;
@@ -55,6 +56,12 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
     try {
       recordType = context.type;
       empRecord = context.newRecord;
+      newEmpId = empRecord.entityid;
+
+      log.debug({
+        title: "emp entityid:",
+        details: newEmpId,
+      });
 
       log.debug({
         title: "recordType:",
@@ -118,24 +125,28 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
     try {
       if (recordType !== "create") return;
 
-      let currUser = runtime.getCurrentUser();
+      log.debug({
+        title: "afterSubmit clause",
+        details: "passed the afterSubmit clause!",
+      });
+
+      let currUserId = runtime.getCurrentUser();
       let currUserName = currUser.name;
       let newEmpRecordName = empRecord.entityid;
-      let timeStamp = new Date().getUTCMilliseconds();
 
       log.debug({
-        title: "currUser:",
-        details: [currUser, timeStamp, currUserName],
+        title: "afterSubmit debug logs:",
+        details: [currUserId, currUserName, supervisorId],
       });
 
       email.send({
-        author: currUserName,
-        body: `Hello ${supervisorId} \n\nA new employee record has been created for ${newEmpRecordName}.\nPlease ensure that the information entered on their record is correct.\nClick to view employee record:<a href="https://tstdrv2338496.app.netsuite.com/app/common/entity/employee.nl?id=3111&whence=&cmid=1652818365763_3384">${newEmpRecordName}}</a>`,
+        author: currUserId,
+        body: `<body><h2>Hello ${supervisorId}</h2> \n\n<p>A new employee record has been created for ${newEmpRecordName}.\nPlease ensure that the information entered on their record is correct.\nClick to view employee record:<a href="https://tstdrv2338496.app.netsuite.com/app/common/entity/employee.nl?id=${newEmpId}&whence=&cmid=1652818365763_3384">${newEmpRecordName}}</a></p></body>`,
         recipients: supervisorId,
         subject: `New Employee Introduction : ${newEmpRecordName}`,
-        relatedRecords: {
-          customRecord: newEmpRecordName,
-        },
+        // relatedRecords: {
+        //   customRecord: newEmpRecordName,
+        // },
       });
     } catch (err) {
       log.debug({
