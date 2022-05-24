@@ -12,35 +12,19 @@ after a new employee record is created for the first time, send an email to the 
  *@NScriptType UserEventScript
  */
 
-define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
+define(["N/email", "N/runtime", "N/search", "N/url"], function (
+  email,
+  runtime,
+  search,
+  url
+) {
   // global references:
-  var ceo;
-  var newEmp;
   var newEmpId;
   var empRecord;
   var recordType;
   var supervisorId;
-  var supervisorEmail;
-
-  function getSupervisorInfo(context) {
-    try {
-      log.debug({
-        title: "empRecord via getSupervisorInfo():",
-        details: empRecord,
-      });
-      supervisorId = empRecord.getValue({
-        fieldId: "supervisor",
-      });
-      supervisorEmail = empRecord.getValue({
-        fieldId: "supervisor",
-      });
-    } catch (err) {
-      log.debug({
-        title: "getSupervisorInfo err catch",
-        details: err,
-      });
-    }
-  }
+  var supervisorName;
+  var newEmpURL;
 
   function beforeLoad(context) {
     try {
@@ -54,50 +38,46 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
 
   function beforeSubmit(context) {
     try {
+      //access the context type
       recordType = context.type;
-      empRecord = context.newRecord;
-      newEmpId = empRecord.entityid;
-
-      log.debug({
-        title: "emp entityid:",
-        details: newEmpId,
-      });
-
-      log.debug({
-        title: "recordType:",
-        details: recordType,
-      });
-
-      log.debug({
-        title: "empRecord:",
-        details: empRecord,
-      });
 
       // must be in 'create' type
       if (recordType !== "create") return;
-      log.debug({
-        title: "create condition",
-        details: 'passed the "create" condition',
+
+      // access the new record from context
+      empRecord = context.newRecord;
+
+      // get entityid from new record
+      newEmpId = empRecord.getValue({
+        fieldId: "entityid",
       });
 
-      getSupervisorInfo();
-
-      // did it work?:
       log.debug({
-        title: "curr supervisor id:",
-        details: supervisorId,
+        title: "beforeSubmit: newEmpId:",
+        details: newEmpId,
       });
 
+      // access the supervisor id from the record
+      supervisorId = empRecord.getValue({
+        fieldId: "supervisor",
+      });
+
+      // if no supervisor then saved search for CEO:
       if (!supervisorId) {
         let ceoSearch = search.create({
           type: "employee",
           filters: [
             ["title", "is", "Chief Executive Officer"], // id: 192
           ],
-          columns: ["subsidiarynohierarchy", "comments", "entityid", "email"], // return email
+          columns: ["entityid", "email", "firstname"],
         });
 
         ceoSearch.run().each((result) => {
+          // assign to supervisorName variable
+          supervisorName = result.getValue({
+            name: "firstname",
+          });
+
           empRecord.setValue({
             fieldId: "supervisor",
             value: result.id,
@@ -106,6 +86,27 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
             fieldId: "comments",
             value:
               "CEO was defaulted to supervisor \nbecause the supervisor field was empty",
+          });
+          return false;
+        });
+      } else {
+        // if supervisor IS set, get supervisorName!
+        let supervisorNameSearch = search.create({
+          type: "employee",
+          filters: [
+            ["internalid", "anyof", supervisorId], // find firstname of newEmp's supervisor by id
+          ],
+          columns: ["firstname"],
+        });
+
+        supervisorNameSearch.run().each((result) => {
+          // assign to supervisorName variable
+          supervisorName = result.getValue({
+            name: "firstname",
+          });
+          log.debug({
+            title: "beforeSubmit, search, supervisorName:",
+            details: supervisorName,
           });
           return false;
         });
@@ -118,39 +119,97 @@ define(["N/email", "N/runtime", "N/search"], function (email, runtime, search) {
     }
   }
 
-  // after a new employee record is created for the first time, send an email to the supervisors email with an HR note saying
-  // "subject: new employee introduction - <employee name>"" "body: hey <supervisor name> a new employee record has been created for <employee name> please ensure that the information entered on the record is correct. LINE BREAK Hyper link the employee record"
-
   function afterSubmit(context) {
     try {
-      if (recordType !== "create") return;
-
+      // need to reassign empRecord
+      empRecord = context.newRecord;
+      // did empRecord change?
       log.debug({
-        title: "afterSubmit clause",
-        details: "passed the afterSubmit clause!",
+        title: "afterSubmit, empRecord:",
+        details: empRecord,
       });
 
-      let currUserId = runtime.getCurrentUser();
-      let currUserName = currUser.name;
-      let newEmpRecordName = empRecord.entityid;
+      // access the supervisor id from the record
+      supervisorId = empRecord.getValue({
+        fieldId: "supervisor",
+      });
+
+      // supervisorName = empRecord.getValue({
+      //   fieldId: "",
+      // });
+
+      // is the supervisor Name carrying through to the afterSubmit event... ?
+      log.debug({
+        title: "afterSubmit: curr supervisor name:",
+        details: supervisorName,
+      });
+
+      let currUser = runtime.getCurrentUser();
+      log.debug({
+        title: "afterSubmit, currUser:",
+        details: currUser,
+      });
+
+      let currUserId = currUser.id; // camilo test
+      log.debug({
+        title: "afterSubmit, currUserId:",
+        details: currUserId,
+      });
+
+      let newEmpRecordName = empRecord.getValue({
+        fieldId: "firstname",
+      });
 
       log.debug({
-        title: "afterSubmit debug logs:",
-        details: [currUserId, currUserName, supervisorId],
+        title: "afterSubmit, newEmpRecordName:",
+        details: newEmpRecordName,
+      });
+
+      newEmpId = empRecord.getValue({
+        fieldId: "entityid",
+      });
+
+      log.debug({
+        title: "afterSubmit, newEmpID",
+        details: newEmpId,
+      });
+
+      /// URL:
+      newEmpURL = url.resolveRecord({
+        recordType: "employee",
+        recordId: newEmpId,
+        isEditMode: true,
+      });
+
+      // should log correct URL to new employee
+      log.debug({
+        title: "afterSubmit, newEmpURL:",
+        details: newEmpURL,
       });
 
       email.send({
         author: currUserId,
-        body: `<body><h2>Hello ${supervisorId}</h2> \n\n<p>A new employee record has been created for ${newEmpRecordName}.\nPlease ensure that the information entered on their record is correct.\nClick to view employee record:<a href="https://tstdrv2338496.app.netsuite.com/app/common/entity/employee.nl?id=${newEmpId}&whence=&cmid=1652818365763_3384">${newEmpRecordName}}</a></p></body>`,
+        body: `
+        <h2>Hello ${supervisorId}</h2></br>
+        <p>
+        A new employee record has been created for <strong>${newEmpRecordName}</strong>.</br></br>
+          Please ensure that the information entered on their record is correct.</br></br>
+          Click to view employee record:
+          <a href="https://tstdrv2338496.app.netsuite.com/${newEmpURL}"><strong>${newEmpRecordName}</strong></a>
+        </p>
+        `,
         recipients: supervisorId,
         subject: `New Employee Introduction : ${newEmpRecordName}`,
-        // relatedRecords: {
-        //   customRecord: newEmpRecordName,
-        // },
+        relatedRecords: {
+          customRecord: {
+            id: newEmpId,
+            recordType: recordType,
+          },
+        },
       });
     } catch (err) {
       log.debug({
-        title: "before submit err catch",
+        title: "after submit err catch",
         details: err,
       });
     }
