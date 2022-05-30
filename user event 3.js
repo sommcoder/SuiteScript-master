@@ -191,15 +191,18 @@ define(["N/email", "N/runtime", "N/search", "N/url"], function (
         author: currUserId,
         body: `
         <h2>Hello ${supervisorId}</h2></br>
-        <p>
-        A new employee record has been created for <strong>${newEmpRecordName}</strong>.</br></br>
+        
+        <p>A new employee record has been created for <strong>${newEmpRecordName}</strong>.</br></br>
           Please ensure that the information entered on their record is correct.</br></br>
           Click to view employee record:
           <a href="https://tstdrv2338496.app.netsuite.com/${newEmpURL}"><strong>${newEmpRecordName}</strong></a>
         </p>
         `,
+        // use runtime module to dynamically populate the URL
+        // recipients might be an array, look into it
         recipients: supervisorId,
         subject: `New Employee Introduction : ${newEmpRecordName}`,
+        // look up how to do this properly
         relatedRecords: {
           customRecord: {
             id: newEmpId,
