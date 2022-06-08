@@ -3,7 +3,7 @@
 ** use Camilos template he sent you
 
 
-2) Header: logom address, and contact info, then pdf title plus order number and date, then Bill To and Ship To address, then a double stacked record header for some info on the order. Customer PO, sales rep, contact. Total BF doesn;t make sense for the test account so just REPLACE it with another field. then the item list.
+2) Header: logo address, and contact info, then pdf title plus order number and date, then Bill To and Ship To address, then a double stacked record header for some info on the order. Customer PO, sales rep, contact. Total BF doesn;t make sense for the test account so just REPLACE it with another field. then the item list.
 
 3) In the item field, show the item BOLDED, with the description of the item underneath. Thi is followed by quantity, ignore pieces, show back order, UOM, lumber price can just be rate and total amount.
 
@@ -17,5 +17,3 @@
 */
 
 // create a sales order that replicates this format
-
-define;
