@@ -107,6 +107,33 @@
 		vertical-align: middle;
 	}
 
+	hr {
+		width: 100%; 
+		color: #d3d3d3; background-color: #d3d3d3; height: 1px;
+	}
+
+	.item-value-inputs {
+		text-align: center;
+	}
+
+	.billing-shipping-header-cells {
+		font-size: 8pt;
+		padding: 6px 0 2px; 
+		font-weight: bold; 
+		color: #333333;
+		width: 25%;
+	}
+
+	#billing-shipping-header-total {
+		font-size: 12pt; background-color: #e3e3e3; font-weight: bold;
+		width: 50%;
+	}
+	
+	#billing-shipping-total {
+		font-size: 28pt; padding-top: 20px; background-color: #e3e3e3;
+		align: right;
+	}
+
 	.item-headers {
 		padding: 10px 6px; 
 		text-align: center;
@@ -123,6 +150,7 @@
 	#footer-disclaimer {
 		text-align: center;
 		display: block;
+		align: center;
 	}
 
 	#barcode-macro {
@@ -140,30 +168,29 @@
 <body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
 
 
-<!-- 1st header : -->
+<!-- billing/shipping Table -->
     <table style="width: 100%; margin-top: 10px;">
 	<tr>
-		<td colspan="3" style="font-size: 8pt; padding: 6px 0 2px; font-weight: bold; color: #333333;">${record.billaddress@label}
+		<td class=".billing-shipping-header-cells">${record.billaddress@label}
 		</td>
-		<td colspan="3" style="font-size: 8pt; padding: 6px 0 2px; font-weight: bold; color: #333333;">${record.shipaddress@label}
+		<td class=".billing-shipping-header-cells">${record.shipaddress@label}
 		</td>
-		<td colspan="5" style="font-size: 12pt; background-color: #e3e3e3; font-weight: bold;">${record.total@label?upper_case}
+		<td id="billing-shipping-header-total">${record.total@label?upper_case}
 		</td>
 	</tr>
 
-<!-- 1st header VALUES : -->
+<!-- villing/shipping Table Values -->
 	<tr>
-		<td colspan="3" style="padding: 0;">${record.billaddress}
+		<td>${record.billaddress}
 		</td>
-		<td colspan="3" style="padding: 0;">${record.shipaddress}
+		<td>${record.shipaddress}
 		</td>
-
-		<td align="right" colspan="5" style="font-size: 28pt; padding-top: 20px; background-color: #e3e3e3;">${record.total}
+		<td id="billing-shipping-total">${record.total}
 		</td>
 	</tr>
 	</table>
 
-<!-- 2nd header: -->
+<!-- Sales Info Table -->
 	<table style="width: 100%; margin-top: 10px;">
 	<tr>
 		<th>${record.otherrefnum@label}</th>
@@ -172,7 +199,7 @@
 		<th>${record.shipdate@label}</th>
 	</tr>
 
-	<!-- 2nd header VALUES: -->
+	<!-- Sales Info Table VALUES: -->
 	<tr>
 		<td style="padding-top: 2px;">${record.otherrefnum}</td>
 		<td style="padding-top: 2px;">${record.salesrep}</td>
@@ -181,8 +208,8 @@
 	</tr>
 	</table>
 
+<!-- Item Table -->
 <#if record.item?has_content>
-
 	<table style="width: 100%; margin-top: 10px;">
 	<!-- start items -->
 	<#list record.item as item>
@@ -215,14 +242,13 @@
 			</td>
 			<td class="item-value-inputs">${item.quantitybackordered}</td>
 			<td class="item-value-inputs">${item.custcol_rd_weight_unit}</td>
-			<td class="item-value-inputs">${item.rate}
-			</td>
-			<td class="item-value-inputs">${item.amount}
-			</td>
+			<td class="item-value-inputs">${item.rate}</td>
+			<td class="item-value-inputs">${item.amount}</td>
 		  </tr>
 		</#list><!-- end items -->
 		</table>
-		<hr style="width: 100%; color: #d3d3d3; background-color: #d3d3d3; height: 1px;" />
+
+		<hr />
 </#if>
 
 	<!-- TOTALS TABLE: -->
