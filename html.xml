@@ -48,17 +48,15 @@
         <macro id="nlfooter">
             <table style="width: 100%; font-size: 8pt;">
 			<tr>
-				<td>
-					<p id="footer-disclaimer">
-						${companyinformation.formlogo}Please review order confirmation details to ensure order accuracy.
-					</p>
+				<td colspan="8" id="footer-disclaimer">
+				${companyinformation.formlogo}Please review sales order details to ensure order accuracy.
 				</td>
 			</tr>
 			<tr>
-				<td>
+				<td colspan="4">
 					<barcode id="barcode-macro" codetype="code128" showtext="true" value="${record.tranid}"/>
 				</td>
-				<td id="page-number-macro">
+				<td colspan="4" id="page-number-macro">
 					<pagenumber/> of <totalpages/>
 				</td>
 			</tr>
@@ -83,37 +81,35 @@
 	}
 	
 	table {
-			font-size: 9pt;
-			table-layout: fixed;
+		font-size: 9pt;
+		table-layout: fixed;
 	}
 
-	tr {
+	<!-- tr {
 		border: 1px solid orangered;
-	}
+	} -->
     
 	th {
-            font-weight: bold;
-            font-size: 8pt;
-            vertical-align: middle;
-			text-align: center;
-            padding: 5px 6px 3px;
-            background-color: #e3e3e3;
-            color: #333333;
+        font-weight: bold;
+        font-size: 8pt;
+        vertical-align: middle;
+		text-align: center;     
+        padding: 5px 6px 3px;
+        background-color: #e3e3e3;
+        color: #333333;
     }
 
 	td { 
 		padding: 4px 6px; 
-		border: 1px solid black;
+		<!-- border: 1px solid black; -->
 		vertical-align: middle;
 	}
 
 	hr {
 		width: 100%; 
-		color: #d3d3d3; background-color: #d3d3d3; height: 1px;
-	}
-
-	.item-value-inputs {
-		text-align: center;
+		color: #d3d3d3; 
+		background-color: #d3d3d3; 
+		height: 1px;
 	}
 
 	.billing-shipping-header-cells {
@@ -125,12 +121,16 @@
 	}
 
 	#billing-shipping-header-total {
-		font-size: 12pt; background-color: #e3e3e3; font-weight: bold;
+		font-size: 12pt; 
+		background-color: #e3e3e3; 
+		font-weight: bold;
 		width: 50%;
 	}
 	
 	#billing-shipping-total {
-		font-size: 28pt; padding-top: 20px; background-color: #e3e3e3;
+		font-size: 28pt; 
+		padding-top: 20px; 
+		background-color: #e3e3e3;
 		align: right;
 	}
 
@@ -149,7 +149,7 @@
 
 	#footer-disclaimer {
 		text-align: center;
-		display: block;
+		width: 100%;
 		align: center;
 	}
 
@@ -159,8 +159,11 @@
 	}
 
 	#page-number-macro {
+		display: inline;
 		align: right;
-		text-align: right;
+		width: 20%;
+		text-align: center;
+		white-space: nowrap;
 	}
 </style>
 </head>
@@ -201,10 +204,10 @@
 
 	<!-- Sales Info Table VALUES: -->
 	<tr>
-		<td style="padding-top: 2px;">${record.otherrefnum}</td>
-		<td style="padding-top: 2px;">${record.salesrep}</td>
-		<td style="padding-top: 2px;">${record.salesrep.email}</td>
-		<td style="padding-top: 2px;">${record.shipdate}</td>
+		<td style="padding-top: 10px;">${record.otherrefnum}</td>
+		<td style="padding-top: 10px;">${record.salesrep}</td>
+		<td style="padding-top: 10px;">${record.salesrep.email}</td>
+		<td style="padding-top: 10px;">${record.shipdate}</td>
 	</tr>
 	</table>
 
@@ -221,29 +224,29 @@
 			</th>
 			<th style="width: 40%;" class="item-headers">${item.item@label}
 			</th>
-			<th class="item-headers">${item.quantitybackordered@label}
+			<th class="item-headers" style="align: center;">${item.quantitybackordered@label}
 			</th>
-			<th class="item-headers">${item.custcol_rd_weight_unit@label}
+			<th class="item-headers" style="align: center;">${item.custcol_rd_weight_unit@label}
 			</th>
-			<th class="item-headers">${item.rate@label}
+			<th class="item-headers" style="align: center;">${item.rate@label}
 			</th>
-			<th class="item-headers">${item.amount@label}
+			<th class="item-headers" style="align: center;">${item.amount@label}
 			</th>
 		</tr>
 		</thead>
 		</#if>
 		<!-- Item Table Header VALUES: -->
 		<tr>
-			<td class="item-value-inputs">${item.quantity}</td>
-			<td class="item-value-inputs">
+			<td style="align: center;">${item.quantity}</td>
+			<td>
 				<span class="item-description-data">${item.item}
 				</span><br />
 				${item.description}
 			</td>
-			<td class="item-value-inputs">${item.quantitybackordered}</td>
-			<td class="item-value-inputs">${item.custcol_rd_weight_unit}</td>
-			<td class="item-value-inputs">${item.rate}</td>
-			<td class="item-value-inputs">${item.amount}</td>
+			<td style="align: center;">${item.quantitybackordered}</td>
+			<td style="align: center;">${item.custcol_rd_weight_unit}</td>
+			<td style="align: center;">${item.rate}</td>
+			<td style="align: center;">${item.amount}</td>
 		  </tr>
 		</#list><!-- end items -->
 		</table>
