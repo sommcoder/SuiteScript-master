@@ -51,12 +51,24 @@ N/uiServerWidget
 define(["N/http", "N/ui/serverWidget"], function (http, serverWidget) {
   function onRequest(context) {
     try {
+      // GET guard clause
       log.debug({
-        title: "onRequest Work?",
-        details: "yes, yes it did",
+        title: "Suitelet Connected?:",
+        details: "SUCCESS!!! ",
+      });
+      if (context.request.method !== "GET") return;
+      log.debug({
+        title: "onRequest GET guard clause?",
+        details: "SUCCESS!!! ",
       });
       //   objForm.clientScriptModulePath = "SuiteScript/clientScript-3.js";
       //   console.log(objForm);
+
+      // call the Suitelet
+
+      // Suitelet generates the sublist of items in a popup
+
+      // best practice is to DISCOVER the URL with url.resolveDomain() as opposed to hard coding it
     } catch (err) {
       console.log(err);
     }
