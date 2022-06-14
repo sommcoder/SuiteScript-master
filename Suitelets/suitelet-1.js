@@ -64,10 +64,16 @@ define(["N/ui/serverWidget", "N/search", "N/url"], function (
       // also a list of last sold price for the item and the customer who bought it
 
       // pass in the items and currentOrder dynamically:
+      const sublists = JSON.parse(context.request.parameters);
 
       log.debug({
         title: "request parameters:",
         details: context.request.parameters,
+      });
+
+      log.debug({
+        title: "request parameters:",
+        details: sublists,
       });
 
       // const salesOrderResults = search.create({

@@ -71,7 +71,9 @@ define(["N/runtime", "N/url"], function (runtime, url) {
 
       const suiteletUrlParam = url.format({
         domain: suiteletUrl,
-        params: sublistValues,
+        params: {
+          sublists: JSON.stringify(sublistValues),
+        },
       });
 
       log.debug({
