@@ -44,31 +44,70 @@ N/uiServerWidget
 
 */
 
+// figure out how to pass information into a new window... just JS
+
 /**
  *@NApiVersion 2.1
  *@NScriptType Suitelet
  */
-define(["N/http", "N/ui/serverWidget"], function (http, serverWidget) {
+define(["N/ui/serverWidget", "N/search", "N/url"], function (
+  serverWidget,
+  search,
+  url
+) {
   function onRequest(context) {
     try {
-      // GET guard clause
-      log.debug({
-        title: "Suitelet Connected?:",
-        details: "SUCCESS!!! ",
-      });
       if (context.request.method !== "GET") return;
+
+      // list of customers who bought the particular items on the sales order youre viewing
+
+      // also a list of last sold price for the item and the customer who bought it
+
+      // pass in the items and currentOrder dynamically:
+
       log.debug({
-        title: "onRequest GET guard clause?",
-        details: "SUCCESS!!! ",
+        title: "request parameters:",
+        details: context.request.parameters,
       });
-      //   objForm.clientScriptModulePath = "SuiteScript/clientScript-3.js";
-      //   console.log(objForm);
 
-      // call the Suitelet
+      // const salesOrderResults = search.create({
+      //   type: "salesorder",
+      //   filters: [
+      //     ["type", "anyof", "SalesOrd"],
+      //     "AND",
+      //     ["item", "anyof", "678"],
+      //     "AND",
+      //     ["mainline", "is", "F"],
+      //   ],
+      //   columns: [
+      //     search.createColumn({ name: "rate", label: "Item Rate" }),
+      //     search.createColumn({ name: "entity", label: "Name" }),
+      //     search.createColumn({ name: "tranid", label: "Document Number" }),
+      //   ],
+      // });
+      // var searchResultCount = salesorderSearchObj.runPaged().count;
+      // log.debug("salesorderSearchObj result count", searchResultCount);
+      // salesorderSearchObj.run().each(function (result) {
+      //   return true;
+      // });
 
-      // Suitelet generates the sublist of items in a popup
+      // custom sublist
+      const priceHistoryForm = serverWidget.createForm({
+        title: "Price History",
+        hideNavBar: true,
+      });
 
-      // best practice is to DISCOVER the URL with url.resolveDomain() as opposed to hard coding it
+      const suiteletSublist = priceHistoryForm.addSublist({
+        id: "itemhistoryid",
+        label: "item history",
+        tab: "items",
+        type: "staticlist",
+      });
+
+      // write Suitelet Page:
+      context.response.writePage({
+        pageObject: priceHistoryForm,
+      });
     } catch (err) {
       console.log(err);
     }

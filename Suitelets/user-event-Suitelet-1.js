@@ -5,33 +5,84 @@
 define(["N/runtime", "N/url"], function (runtime, url) {
   function beforeLoad(context) {
     try {
-      const currRecord = context.newRecord;
       const currForm = context.form;
       const userEventType = context.type;
 
-      // Guard Clauses:
+      const currRecord = context.newRecord;
+      const currRecordId = currRecord.id;
+      const currRecordType = currRecord.type;
+
+      const lnCount = currRecord.getLineCount({
+        sublistId: "item",
+      });
+
+      log.debug({
+        title: "line count:",
+        details: lnCount,
+      });
+
+      const sublistValues = [];
+
+      for (let i = 0; i < lnCount; i++) {
+        sublistValues.push(
+          currRecord.getSublistValue({
+            sublistId: "item",
+            fieldId: "item",
+            line: i,
+          })
+        );
+      }
+
+      log.debug({
+        title: "sublist Values:",
+        details: sublistValues,
+      });
+
       if (currRecord.type !== "salesorder") return;
       if (userEventType !== "view") return;
 
-      // 404: https://tstdrv2338496.app.netsuite.com/app/accounting/transactions/null
-
-      const suiteletURL = url.resolveScript({
+      const suiteletUrl = url.resolveScript({
         deploymentId: "customdeploy1",
         scriptId: "customscript2116",
       });
 
       log.debug({
-        title: "suiteletURL:",
-        details: suiteletURL,
+        title: "currRecord:",
+        details: currRecord,
+      });
+
+      log.debug({
+        title: "currRecordType:",
+        details: currRecordType,
+      });
+
+      log.debug({
+        title: "currRecordId:",
+        details: currRecordId,
+      });
+
+      log.debug({
+        title: "suiteletUrl:",
+        details: suiteletUrl,
       });
 
       const windowFeatures =
         "popup=1,screenY=-50%,screenX=50%,width=400,height=600,resizable=yes,scrollbars=yes";
 
+      const suiteletUrlParam = url.format({
+        domain: suiteletUrl,
+        params: sublistValues,
+      });
+
+      log.debug({
+        title: "Suitelet Url Params:",
+        details: suiteletUrlParam,
+      });
+
       currForm.addButton({
         id: "custpage_sublistSuiteletButton",
         label: "Price History",
-        functionName: `window.open('${suiteletURL}', ${windowFeatures}')`,
+        functionName: `window.open('${suiteletUrlParam}', '_blank', '${windowFeatures}')`,
       });
     } catch (err) {
       log.error({
