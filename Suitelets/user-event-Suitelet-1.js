@@ -12,19 +12,22 @@ define(["N/runtime", "N/url"], function (runtime, url) {
       const currRecordId = currRecord.id;
       const currRecordType = currRecord.type;
 
+      // guard clause
+      if (currRecord.type !== "salesorder") return;
+      if (userEventType !== "view") return;
+
+      const tranId = currRecord.getValue({
+        fieldId: "tranid",
+      });
+
       const lnCount = currRecord.getLineCount({
         sublistId: "item",
       });
 
-      log.debug({
-        title: "line count:",
-        details: lnCount,
-      });
-
-      const sublistValues = [];
+      const sublistValuesArr = [];
 
       for (let i = 0; i < lnCount; i++) {
-        sublistValues.push(
+        sublistValuesArr.push(
           currRecord.getSublistValue({
             sublistId: "item",
             fieldId: "item",
@@ -33,37 +36,9 @@ define(["N/runtime", "N/url"], function (runtime, url) {
         );
       }
 
-      log.debug({
-        title: "sublist Values:",
-        details: sublistValues,
-      });
-
-      if (currRecord.type !== "salesorder") return;
-      if (userEventType !== "view") return;
-
       const suiteletUrl = url.resolveScript({
         deploymentId: "customdeploy1",
         scriptId: "customscript2116",
-      });
-
-      log.debug({
-        title: "currRecord:",
-        details: currRecord,
-      });
-
-      log.debug({
-        title: "currRecordType:",
-        details: currRecordType,
-      });
-
-      log.debug({
-        title: "currRecordId:",
-        details: currRecordId,
-      });
-
-      log.debug({
-        title: "suiteletUrl:",
-        details: suiteletUrl,
       });
 
       const windowFeatures =
@@ -72,7 +47,10 @@ define(["N/runtime", "N/url"], function (runtime, url) {
       const suiteletUrlParam = url.format({
         domain: suiteletUrl,
         params: {
-          sublists: JSON.stringify(sublistValues),
+          sublistItems: JSON.stringify(sublistValuesArr),
+          currRecordId: currRecordId,
+          tranId: tranId,
+          currRecordType: currRecordType,
         },
       });
 
@@ -81,6 +59,7 @@ define(["N/runtime", "N/url"], function (runtime, url) {
         details: suiteletUrlParam,
       });
 
+      // add button to UI with Server-Side rendering
       currForm.addButton({
         id: "custpage_sublistSuiteletButton",
         label: "Price History",

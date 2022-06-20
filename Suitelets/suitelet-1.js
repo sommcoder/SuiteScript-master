@@ -1,13 +1,19 @@
 /* 
 
-make a suitelet accessible through a button on the sales order that when clicked will list all of the items on the sales order as a sublist including additional information NOT found in the sales order such as a list of last sold prices for the item and the customer who bought them.
+make a suitelet accessible through a button on the sales order that when clicked will list all of the items on the sales order as a sublist including additional information NOT found in the sales order such as a 
+
+// list of last sold prices for the item and the customer who bought them.
+
+
+// ITEM   SO   PRICE    CUSTOMER
+rolex   d112a   $123       
 
 button called: 'Price History'
 
 on the header of the popup:
 
 header:
-Order # : curr custome
+Order # : curr customer
 
 sublist:
 # : customer : price
@@ -50,11 +56,7 @@ N/uiServerWidget
  *@NApiVersion 2.1
  *@NScriptType Suitelet
  */
-define(["N/ui/serverWidget", "N/search", "N/url"], function (
-  serverWidget,
-  search,
-  url
-) {
+define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
   function onRequest(context) {
     try {
       if (context.request.method !== "GET") return;
@@ -64,58 +66,129 @@ define(["N/ui/serverWidget", "N/search", "N/url"], function (
       // also a list of last sold price for the item and the customer who bought it
 
       // pass in the items and currentOrder dynamically:
-      const sublists = JSON.parse(context.request.parameters);
 
       log.debug({
         title: "request parameters:",
         details: context.request.parameters,
       });
 
+      const reqParams = context.request.parameters;
+
+      const sublistItems = JSON.parse(reqParams.sublistItems);
+      const currRecordId = reqParams.currRecordId;
+      const currRecordType = reqParams.currRecordType;
+      const tranId = reqParams.tranId;
+
       log.debug({
-        title: "request parameters:",
-        details: sublists,
+        title: "currRecordId:",
+        details: currRecordId,
       });
 
-      // const salesOrderResults = search.create({
-      //   type: "salesorder",
-      //   filters: [
-      //     ["type", "anyof", "SalesOrd"],
-      //     "AND",
-      //     ["item", "anyof", "678"],
-      //     "AND",
-      //     ["mainline", "is", "F"],
-      //   ],
-      //   columns: [
-      //     search.createColumn({ name: "rate", label: "Item Rate" }),
-      //     search.createColumn({ name: "entity", label: "Name" }),
-      //     search.createColumn({ name: "tranid", label: "Document Number" }),
-      //   ],
-      // });
-      // var searchResultCount = salesorderSearchObj.runPaged().count;
-      // log.debug("salesorderSearchObj result count", searchResultCount);
-      // salesorderSearchObj.run().each(function (result) {
-      //   return true;
-      // });
+      log.debug({
+        title: "tranId:",
+        details: tranId,
+      });
 
-      // custom sublist
-      const priceHistoryForm = serverWidget.createForm({
-        title: "Price History",
+      log.debug({
+        title: "sublists items:",
+        details: sublistItems,
+      });
+
+      log.debug({
+        title: "currRecordType",
+        details: currRecordType,
+      });
+      // create the form on a page:
+      const itemHistoryForm = serverWidget.createForm({
+        title: "Item History",
         hideNavBar: true,
       });
 
-      const suiteletSublist = priceHistoryForm.addSublist({
-        id: "itemhistoryid",
-        label: "item history",
+      // add sublist to the form
+      const suiteletSublist = itemHistoryForm.addSublist({
+        id: "custpage_item_history_sublist",
+        label: "item history sublist",
         tab: "items",
-        type: "staticlist",
+        type: "list",
       });
 
-      // write Suitelet Page:
+      // add fields to sublist:
+      suiteletSublist.addField({
+        id: "sublist-field-id-item", // item #
+        label: "Item",
+        type: "select",
+      });
+      suiteletSublist.addField({
+        id: "sublist-field-id-tranid", // SO #
+        label: "SO",
+        type: "select",
+      });
+      suiteletSublist.addField({
+        id: "sublist-field-id-rate", //price
+        label: "Price",
+        type: "select",
+      });
+      suiteletSublist.addField({
+        id: "sublist-field-id-entity", // customer
+        label: "Customer",
+        type: "select",
+      });
+
+      const salesOrderResults = search.create({
+        type: currRecordType, // sales order
+        filters: [
+          ["item", "anyof", sublistItems], // item(s);
+          "AND",
+          ["mainline", "is", "F"],
+          // "AND",
+          // ["numbertext", "haskeywords", "SO"], //ensuring only Sales Orders get through
+        ],
+        columns: [
+          search.createColumn({ name: "rate", label: "Item Rate" }),
+          search.createColumn({ name: "entity", label: "Name" }),
+          search.createColumn({ name: "tranId", label: "Document Number" }),
+          search.createColumn({ name: "item", label: "Item" }),
+          search.createColumn({ name: "datecreated", label: "Date Created" }),
+        ],
+      });
+
+      log.debug({
+        title: "search results:",
+        details: salesOrderResults,
+      });
+
+      salesOrderResults.run().each((result) => {
+        log.debug({
+          title: "results:",
+          details: result,
+        });
+
+        for (let i = 0; i < result.length; i++) {
+          suiteletSublist.setSublistValue({
+            id: "sublist-field-id-item",
+            line: i,
+            value: result.getValue({
+              name: tranId,
+            }),
+          });
+        }
+
+        return false;
+      });
+
+      // salesOrderResults.run().each(function (result) {
+      //   return true;
+      // });
+
+      // WRITE Suitelet Page:
       context.response.writePage({
-        pageObject: priceHistoryForm,
+        pageObject: itemHistoryForm,
       });
     } catch (err) {
-      console.log(err);
+      log.error({
+        title: "Suitelet_error:",
+        details: err.message,
+      });
     }
   }
 
