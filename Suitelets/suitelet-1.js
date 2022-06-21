@@ -114,27 +114,32 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
 
       // add fields to sublist:
       suiteletSublist.addField({
-        id: "sublist-field-id-item", // item #
+        id: "custpage_sublist_field_id_item", // item #
         label: "Item",
         type: "select",
       });
       suiteletSublist.addField({
-        id: "sublist-field-id-tranid", // SO #
+        id: "custpage_sublist_field_id_tranid", // SO #
         label: "SO",
         type: "select",
       });
       suiteletSublist.addField({
-        id: "sublist-field-id-rate", //price
+        id: "custpage_sublist_field_id_rate", //price
         label: "Price",
         type: "select",
       });
       suiteletSublist.addField({
-        id: "sublist-field-id-entity", // customer
+        id: "custpage_sublist_field_id_date", // customer
+        label: "Date Created",
+        type: "select",
+      });
+      suiteletSublist.addField({
+        id: "custpage_sublist_field_id_entity", // customer
         label: "Customer",
         type: "select",
       });
 
-      const salesOrderResults = search.create({
+      const salesOrderSearch = search.create({
         type: currRecordType, // sales order
         filters: [
           ["item", "anyof", sublistItems], // item(s);
@@ -154,26 +159,56 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
 
       log.debug({
         title: "search results:",
-        details: salesOrderResults,
+        details: salesOrderSearch,
       });
 
-      salesOrderResults.run().each((result) => {
-        log.debug({
-          title: "results:",
-          details: result,
+      let i = 0;
+
+      const salesOrderResults = salesOrderSearch.run().each((result) => {
+        // log.debug({
+        //   title: "results:",
+        //   details: result,
+        // });
+
+        suiteletSublist.setSublistValue({
+          id: "custpage_sublist_field_id_item",
+          line: i,
+          value: result.getValue({
+            name: "item",
+          }),
+        });
+        suiteletSublist.setSublistValue({
+          id: "custpage_sublist_field_id_tranid",
+          line: i,
+          value: result.getValue({
+            name: "id",
+          }),
+        });
+        suiteletSublist.setSublistValue({
+          id: "custpage_sublist_field_id_rate",
+          line: i,
+          value: result.getValue({
+            name: "rate",
+          }),
+        });
+        suiteletSublist.setSublistValue({
+          id: "custpage_sublist_field_id_date",
+          line: i,
+          value: result.getValue({
+            name: "datecreated",
+          }),
+        });
+        suiteletSublist.setSublistValue({
+          id: "custpage_sublist_field_id_entity",
+          line: i,
+          value: result.getValue({
+            name: "entity",
+          }),
         });
 
-        for (let i = 0; i < result.length; i++) {
-          suiteletSublist.setSublistValue({
-            id: "sublist-field-id-item",
-            line: i,
-            value: result.getValue({
-              name: tranId,
-            }),
-          });
-        }
+        i++; // iterate the global counter
 
-        return false;
+        return true;
       });
 
       // salesOrderResults.run().each(function (result) {
