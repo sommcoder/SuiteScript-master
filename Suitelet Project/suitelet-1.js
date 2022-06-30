@@ -94,10 +94,6 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
         details: sublistItems,
       });
 
-      log.debug({
-        title: "currRecordType",
-        details: currRecordType,
-      });
       // create the form on a page:
       const itemHistoryForm = serverWidget.createForm({
         title: "Item History",
@@ -116,27 +112,27 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
       suiteletSublist.addField({
         id: "custpage_sublist_field_id_item", // item #
         label: "Item",
-        type: "select",
+        type: "text",
       });
       suiteletSublist.addField({
         id: "custpage_sublist_field_id_tranid", // SO #
         label: "SO",
-        type: "select",
+        type: "text",
       });
       suiteletSublist.addField({
         id: "custpage_sublist_field_id_rate", //price
         label: "Price",
-        type: "select",
+        type: "text",
       });
       suiteletSublist.addField({
         id: "custpage_sublist_field_id_date", // customer
         label: "Date Created",
-        type: "select",
+        type: "text",
       });
       suiteletSublist.addField({
         id: "custpage_sublist_field_id_entity", // customer
         label: "Customer",
-        type: "select",
+        type: "text",
       });
 
       const salesOrderSearch = search.create({
@@ -145,8 +141,6 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
           ["item", "anyof", sublistItems], // item(s);
           "AND",
           ["mainline", "is", "F"],
-          // "AND",
-          // ["numbertext", "haskeywords", "SO"], //ensuring only Sales Orders get through
         ],
         columns: [
           search.createColumn({ name: "rate", label: "Item Rate" }),
@@ -165,15 +159,15 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
       let i = 0;
 
       const salesOrderResults = salesOrderSearch.run().each((result) => {
-        // log.debug({
-        //   title: "results:",
-        //   details: result,
-        // });
+        log.debug({
+          title: "results:",
+          details: result,
+        });
 
         suiteletSublist.setSublistValue({
           id: "custpage_sublist_field_id_item",
           line: i,
-          value: result.getValue({
+          value: result.getText({
             name: "item",
           }),
         });
@@ -181,7 +175,7 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
           id: "custpage_sublist_field_id_tranid",
           line: i,
           value: result.getValue({
-            name: "id",
+            name: "tranid",
           }),
         });
         suiteletSublist.setSublistValue({
@@ -201,7 +195,7 @@ define(["N/ui/serverWidget", "N/search"], function (serverWidget, search) {
         suiteletSublist.setSublistValue({
           id: "custpage_sublist_field_id_entity",
           line: i,
-          value: result.getValue({
+          value: result.getText({
             name: "entity",
           }),
         });
