@@ -20,7 +20,7 @@ onSubmit of the popup, the sales order will be created with the information ente
  *@NApiVersion 2.1
  *@NScriptType UserEventScript
  */
-define(["N/ui/serverWidget", "N/url"], function (ui, url) {
+define(["N/url", "N/ui/serverWidget"], function (url) {
   function beforeLoad(context) {
     try {
       const currRecord = context.newRecord;
@@ -43,8 +43,17 @@ define(["N/ui/serverWidget", "N/url"], function (ui, url) {
       if (contextType !== "view" && contextType !== "create") return; // guard clause
 
       const suiteletUrl = url.resolveScript({
-        deploymentId: "customdeploysuitelet_so_copier", // create suitelet script deployment
+        deploymentId: "customdeploysuitelet_so_copier",
         scriptId: "customscriptsuitelet_so_copier",
+      });
+
+      const recordTranId = currRecord.getValue({
+        fieldId: "tranid",
+      });
+
+      log.debug({
+        title: "record tranId",
+        details: recordTranId,
       });
 
       log.debug({
@@ -83,6 +92,7 @@ define(["N/ui/serverWidget", "N/url"], function (ui, url) {
         domain: suiteletUrl,
         params: {
           sublistValuesArr: JSON.stringify(sublistValuesArr),
+          recordTranId: recordTranId,
           currRecordId: currRecordId,
           currRecordType: currRecordType,
         },
@@ -94,7 +104,7 @@ define(["N/ui/serverWidget", "N/url"], function (ui, url) {
       });
 
       const windowFeatures =
-        "popup=1,screenY=-50%,screenX=50%,width=500,height=600,resizable=yes,scrollbars=yes";
+        "popup=1,screenY=-50%,screenX=50%,width=750,height=600,resizable=yes,scrollbars=yes";
 
       currForm.addButton({
         id: "custpage_copy_order",
@@ -109,13 +119,7 @@ define(["N/ui/serverWidget", "N/url"], function (ui, url) {
     }
   }
 
-  function beforeSubmit(context) {}
-
-  function afterSubmit(context) {}
-
   return {
     beforeLoad: beforeLoad,
-    beforeSubmit: beforeSubmit,
-    afterSubmit: afterSubmit,
   };
 });
