@@ -22,110 +22,142 @@ onSubmit of the popup, the sales order will be created with the information ente
  *@NScriptType Suitelet
  */
 
-define(["N/search", "N/ui/serverWidget"], function (search, ui) {
+define([
+  "N/search",
+  "N/ui/serverWidget",
+  "N/record",
+  "N/url",
+  "N/https",
+], function (search, ui, record, url, https, crypto) {
+  // global variables
+  let reqParams;
+  let recordId;
+  let recordType;
+  let ogRecordTranId;
+
   function onRequest(context) {
     try {
       if (context.request.method !== "GET") return;
 
-      const reqParams = context.request.parameters;
-      const recordType = reqParams.currRecordType;
-      const recordId = reqParams.currRecordId;
+      log.debug({
+        title: "passed GET?:",
+        details: "yes!",
+      });
+
+      log.debug({
+        title: "context:",
+        details: context.request,
+      });
+
+      // global variable assignments:
+      reqParams = context.request.parameters;
+      recordType = reqParams.currRecordType;
+      recordId = reqParams.currRecordId;
+      ogRecordTranId = reqParams.recordTranId;
 
       log.debug({
         title: "req params:",
         details: reqParams,
       });
 
+      log.debug({
+        title: "tran id:",
+        details: ogRecordTranId,
+      });
+
       const sublistItems = JSON.parse(reqParams.sublistValuesArr);
 
       // create the form on the script:
-      const suiteletForm = ui.createForm({
+      const salesOrderCopyForm = ui.createForm({
         title: "Copy Order",
         hideNavBar: true,
       });
 
-      log.debug({
-        title: "suitelet Form:",
-        details: suiteletForm,
+      ///////// display Order FieldGroup: /////////
+      const customerDetailsFieldGroup = salesOrderCopyForm.addFieldGroup({
+        id: "custpage_customer_details_field_group",
+        label: "Info to copy:",
       });
 
-      ///////// display Order sublist: //////////
-      const displayOrderSublist = suiteletForm.addSublist({
-        id: "custpage_display_order_sublist",
-        label: "Copied Order Details:",
-        type: "list",
-      });
-
-      displayOrderSublist.addField({
+      const customerField = salesOrderCopyForm.addField({
         id: "entity_field",
         label: "Customer",
         type: "text",
+        container: "custpage_customer_details_field_group",
       });
 
-      displayOrderSublist.addField({
+      const subsidiaryField = salesOrderCopyForm.addField({
         id: "subsidiary_field",
         label: "Subsidiary",
         type: "text",
+        container: "custpage_customer_details_field_group",
       });
 
-      const locationField = displayOrderSublist.addField({
+      const locationField = salesOrderCopyForm.addField({
         id: "location_field",
         label: "Location",
         type: "select",
+        container: "custpage_customer_details_field_group",
       });
 
-      const departmentField = displayOrderSublist.addField({
+      const departmentField = salesOrderCopyForm.addField({
         id: "department_field",
         label: "Department",
         type: "select",
+        container: "custpage_customer_details_field_group",
       });
 
-      const classField = displayOrderSublist.addField({
+      const classField = salesOrderCopyForm.addField({
         id: "class_field",
         label: "Class",
         type: "select",
+        container: "custpage_customer_details_field_group",
       });
 
-      ////////// item details sublist: /////////
-      const itemDetailsSublist = suiteletForm.addSublist({
+      ////////// item details sublist: ///////
+
+      const itemDetailsSublist = salesOrderCopyForm.addSublist({
         id: "custpage_item_details_sublist",
-        label: "Item Details:",
+        label: "Items to copy:",
         type: "list",
       });
+      itemDetailsSublist.addMarkAllButtons();
+
+      const checkbox = itemDetailsSublist.addField({
+        id: "custpage_checkbox",
+        label: "select",
+        type: "checkbox",
+      });
+      checkbox.defaultValue = "T";
 
       const itemField = itemDetailsSublist.addField({
         id: "item_field",
         label: "Item",
-        type: "select",
+        type: "text",
       });
 
       const rateField = itemDetailsSublist.addField({
         id: "rate_field",
         label: "Rate",
-        type: "checkbox",
+        type: "text",
       });
 
       const quantityField = itemDetailsSublist.addField({
         id: "quantity_field",
         label: "Quantity",
-        type: "checkbox",
+        type: "text",
       });
 
       const shipdateField = itemDetailsSublist.addField({
         id: "shipdate_field",
         label: "Shipdate",
-        type: "checkbox",
+        type: "text",
       });
 
-      // all of the item details should be EDITABLIE except for 'item name'
+      let entityId; // global variable, used on Record.copy
+      let i = 0; // counter variable for search
 
-      // add auto-filled checkbox field next to each line item to determine which items will be copied!
-
-      // need to include a submit button which will create the new order where the browser will redirect to this new order!
-
-      let i = 0;
-
-      const soSearch = search
+      search
         .create({
           type: recordType,
           filters: [["item", "anyof", sublistItems]],
@@ -143,22 +175,19 @@ define(["N/search", "N/ui/serverWidget"], function (search, ui) {
         })
         .run()
         .each((result) => {
-          /////// display order sublist ////
-          displayOrderSublist.setSublistValue({
-            id: "entity_field",
-            line: i,
-            value: result.getText({
-              name: "entity",
-            }),
-          });
-          displayOrderSublist.setSublistValue({
-            id: "subsidiary_field",
-            line: i,
-            value: result.getText({
-              name: "subsidiary",
-            }),
+          entityId = result.getValue({
+            name: "entity",
           });
 
+          //non-select fields:
+          customerField.defaultValue = result.getText({
+            name: "entity",
+          });
+
+          subsidiaryField.defaultValue = result.getText({
+            name: "subsidiary",
+          });
+          // select fields:
           locationField.addSelectOption({
             value: result.getValue({
               name: "location",
@@ -188,53 +217,129 @@ define(["N/search", "N/ui/serverWidget"], function (search, ui) {
 
           //////// item details sublist ///////
 
-          itemField.addSelectOption({
-            value: result.getValue({
+          itemDetailsSublist.setSublistValue({
+            id: "item_field",
+            line: i,
+            value: result.getText({
               name: "item",
             }),
-            text: result.getText({
-              name: "item",
-            }),
-            isSelected: true,
           });
-
-          rateField.addSelectOption({
+          itemDetailsSublist.setSublistValue({
+            id: "rate_field",
+            line: i,
             value: result.getValue({
               name: "rate",
             }),
-            text: result.getText({
-              name: "rate",
-            }),
-            isSelected: true,
           });
-
-          quantityField.addSelectOption({
+          itemDetailsSublist.setSublistValue({
+            id: "quantity_field",
+            line: i,
             value: result.getValue({
               name: "quantity",
             }),
-            text: result.getText({
-              name: "quantity",
-            }),
-            isSelected: true,
           });
 
-          shipdateField.addSelectOption({
-            value: result.getValue({
-              name: "shipdate",
-            }),
-            text: result.getText({
-              name: "shipdate",
-            }),
-            isSelected: true,
+          itemDetailsSublist.setSublistValue({
+            id: "shipdate_field",
+            line: i,
+            value:
+              result.getValue({
+                name: "shipdate",
+              }) || 0,
           });
 
           i++;
+
+          return true;
         });
+
+      const copiedRecord = record.copy({
+        type: recordType,
+        id: recordId,
+        defaultValues: {
+          entity: entityId,
+        },
+      });
+
+      copiedRecord.save();
+
+      log.debug({
+        title: "Copied record object:",
+        details: copiedRecord,
+      });
+
+      // NS auto populates the sales order record upon saving...
+
+      const submitButton = salesOrderCopyForm.addSubmitButton({
+        label: "Submit Record",
+      });
+
+      log.debug({
+        title: "sublist:",
+        details: itemDetailsSublist,
+      });
 
       // WRITE Suitelet Page:
       context.response.writePage({
-        pageObject: suiteletForm,
+        pageObject: salesOrderCopyForm,
       });
+
+      if (context.request.method !== "POST") return;
+      // when form is submitted, a POST request comes through
+
+
+      context.ServerRequest.getSublistValue({
+        group: 'custpage_item_details_sublist',
+        line: '0',
+        name: string*
+      })
+
+      log.debug({
+        title: "request url:",
+        details: context.request.url,
+      });
+
+      log.debug({
+        title: "record type else statement:",
+        details: recordType,
+      });
+      log.debug({
+        title: "POST context:",
+        details: context,
+      });
+
+      log.debug({
+        title: "POST context req params:",
+        details: context.request.parameters,
+      });
+
+      log.debug({
+        title: "POST body:",
+        details: context.request.body,
+      });
+
+      const headers = new Array();
+      // use destructuring to populate array with key/value pairs!
+      headers["Content-Type"] = "application/json";
+      headers["User-Agent-x"] = "SuiteScript Call";
+
+      log.debug({
+        title: "url?:",
+        details: context.request.url,
+      });
+
+      log.debug({
+        title: "recordType",
+        details: recordType,
+      });
+
+      //   context.response.sendRedirect({
+      //     identifier: recordType,
+      //     type: "RECORD",
+      //     editMode: false,
+      //     id: number | string,
+      //     parameters: {},
+      //   });
     } catch (err) {
       log.debug({
         title: "Error:",
