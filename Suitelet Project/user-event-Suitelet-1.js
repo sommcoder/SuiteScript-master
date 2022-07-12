@@ -13,7 +13,7 @@ define(["N/runtime", "N/url"], function (runtime, url) {
       const currRecordType = currRecord.type;
 
       // guard clause
-      if (currRecord.type !== "salesorder") return;
+      if (currRecordType !== "salesorder") return;
       if (userEventType !== "view") return;
 
       const tranId = currRecord.getValue({
@@ -42,7 +42,7 @@ define(["N/runtime", "N/url"], function (runtime, url) {
       });
 
       const windowFeatures =
-        "popup=1,screenY=-50%,screenX=50%,width=400,height=600,resizable=yes,scrollbars=yes";
+        "popup=1,screenY=-50%,screenX=50%,width=500,height=600,resizable=yes,scrollbars=yes";
 
       const suiteletUrlParam = url.format({
         domain: suiteletUrl,
