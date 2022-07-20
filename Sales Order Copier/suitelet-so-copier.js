@@ -21,44 +21,20 @@ onSubmit of the popup, the sales order will be created with the information ente
  *@NScriptType Suitelet
  */
 
-define(["N/search", "N/ui/serverWidget", "N/record"], function (
+define(["N/search", "N/ui/serverWidget", "N/record", "N/format"], function (
   search,
   ui,
-  record
+  record,
+  format
 ) {
   function onRequest(context) {
     try {
-      log.debug({
-        title: "window.open() worked?",
-        details: "yes!",
-      });
-
       if (context.request.method == "GET") {
-        log.debug({
-          title: "passed GET?:",
-          details: "yes!",
-        });
-
-        log.debug({
-          title: "context:",
-          details: context.request,
-        });
-
         // global variable assignments:
         let reqParams = context.request.parameters;
         let recordId = reqParams.currRecordId;
         let recordType = reqParams.currRecordType;
         let recordTranId = reqParams.recordTranId;
-
-        log.debug({
-          title: "req params:",
-          details: reqParams,
-        });
-
-        log.debug({
-          title: "recordType AND recordId",
-          details: [recordType, "AND", recordId],
-        });
 
         const sublistItems = JSON.parse(reqParams.sublistValuesArr);
 
@@ -75,49 +51,54 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         });
 
         const customerField = salesOrderCopyForm.addField({
-          id: "entity_field",
+          id: "custpage_entity_field",
           label: "Customer",
           type: "text",
           container: "custpage_customer_details_field_group",
         });
+
         customerField.updateDisplayType({
           displayType: "inline",
         });
 
         const subsidiaryField = salesOrderCopyForm.addField({
-          id: "subsidiary_field",
+          id: "custpage_subsidiary_field",
           label: "Subsidiary",
           type: "text",
           container: "custpage_customer_details_field_group",
         });
+
         subsidiaryField.updateDisplayType({
           displayType: "inline",
         });
 
         const locationField = salesOrderCopyForm.addField({
-          id: "inpt_location_field",
+          id: "custpage_inpt_location_field",
           label: "Location",
           type: "select",
           container: "custpage_customer_details_field_group",
         });
 
         const departmentField = salesOrderCopyForm.addField({
-          id: "inpt_department_field",
+          id: "custpage_inpt_department_field",
           label: "Department",
           type: "select",
+          source: "department",
           container: "custpage_customer_details_field_group",
         });
 
         const classField = salesOrderCopyForm.addField({
-          id: "inpt_class_field",
+          id: "custpage_inpt_class_field",
           label: "Class",
           type: "select",
+          source: "classification",
           container: "custpage_customer_details_field_group",
         });
 
         //////////// hidden fields:///////////
+        // used to send non-ui data to the POST REQ //
         const recordIdHiddenField = salesOrderCopyForm.addField({
-          id: "record_id_hidden",
+          id: "custpage_record_id_hidden",
           label: "hidden",
           type: "text",
           container: "custpage_customer_details_field_group",
@@ -128,7 +109,7 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         recordIdHiddenField.defaultValue = recordId;
 
         const recordTypeHiddenField = salesOrderCopyForm.addField({
-          id: "record_type_hidden",
+          id: "custpage_record_type_hidden",
           label: "hidden",
           type: "text",
           container: "custpage_customer_details_field_group",
@@ -138,7 +119,6 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         });
         recordTypeHiddenField.defaultValue = recordType;
         /////////////////////////////////////////
-
         ////////// item details sublist: ///////
 
         const itemDetailsSublist = salesOrderCopyForm.addSublist({
@@ -149,40 +129,44 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         itemDetailsSublist.addMarkAllButtons();
 
         const checkboxField = itemDetailsSublist.addField({
-          id: "checkbox_field",
+          id: "custpage_checkbox_field",
           label: "select",
           type: "checkbox",
         });
         checkboxField.defaultValue = "T";
 
         const itemField = itemDetailsSublist.addField({
-          id: "item_field",
+          id: "custpage_item_field",
           label: "Item",
           type: "text",
         });
+
         // item CANNOT be changed via User Entry!
 
         const rateField = itemDetailsSublist.addField({
-          id: "rate_field",
+          id: "custpage_rate_field",
           label: "Rate",
           type: "text",
         });
+
         rateField.updateDisplayType({
           displayType: "entry",
         });
 
         const quantityField = itemDetailsSublist.addField({
-          id: "quantity_field",
+          id: "custpage_quantity_field",
           label: "Quantity",
           type: "text",
         });
+
         quantityField.updateDisplayType({
           displayType: "entry",
         });
 
         const shipdateField = itemDetailsSublist.addField({
-          id: "shipdate_field",
+          id: "custpage_shipdate_field",
           label: "Shipdate",
+
           type: "date",
         });
         shipdateField.updateDisplayType({
@@ -191,13 +175,9 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
 
         // function scoped variables:
         let i = 0; // counter variable
-        let entityId;
-        const departmentArr = [];
-        const classArr = [];
-        let subsidiary;
+        let entityId; // used in POST Request ELSE block
 
-        // filter to find JUST the item(s) in the current sales order
-        const uiDataSearchResults = search
+        search
           .create({
             type: recordType,
             filters: [
@@ -219,10 +199,6 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
           .run()
           .each((result) => {
             // if result has an empty item iterate to NEXT result
-            log.debug({
-              title: "search began?",
-              details: "YES!",
-            });
             if (
               result.getValue({
                 name: "item",
@@ -230,205 +206,83 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
             )
               return;
 
-            log.debug({
-              title: "search results",
-              details: result,
+            // entity number for global use:
+            entityId = result.getValue({
+              name: "entity",
+            });
+            //non-select INLINE fields:
+            customerField.defaultValue = result.getText({
+              name: "entity", // customer
+            });
+            subsidiaryField.defaultValue = result.getText({
+              name: "subsidiary",
             });
 
-            // // entity number:
-            // entityId = result.getValue({
-            //   name: "entity",
-            // });
+            //////// item details sublist ///////
 
-            // //non-select fields:
+            itemDetailsSublist.setSublistValue({
+              id: "custpage_item_field",
+              line: i,
+              value:
+                result.getText({
+                  name: "item",
+                }) || "",
+            }); // getText = || ""
+            itemDetailsSublist.setSublistValue({
+              id: "custpage_rate_field",
+              line: i,
+              value:
+                result.getValue({
+                  name: "rate",
+                }) || 0,
+            }); // getValue = || 0
+            itemDetailsSublist.setSublistValue({
+              id: "custpage_quantity_field",
+              line: i,
+              value:
+                result.getValue({
+                  name: "quantity",
+                }) || 0,
+            });
 
-            // customerField.defaultValue = result.getText({
-            //   name: "entity", // customer
-            // });
+            itemDetailsSublist.setSublistValue({
+              id: "custpage_shipdate_field",
+              line: i,
+              value:
+                result.getValue({
+                  name: "shipdate",
+                }) || 0,
+            });
 
-            // subsidiaryField.defaultValue = result.getText({
-            //   name: "subsidiary",
-            // });
-
-            // // to be used in the second saved search
-            // subsidiary = result.getText({
-            //   name: "subsidiary",
-            // });
-
-            // log.debug({
-            //   title: "SubsidiaryValue:",
-            //   details: subsidiary,
-            // });
-
-            // log.debug({
-            //   title: "location Result",
-            //   details: result.getValue({
-            //     name: "location",
-            //   }),
-            // });
-
-            // // select fields:
-            // if (
-            //   !locationArr.includes(
-            //     result.getValue({
-            //       name: "location",
-            //     })
-            //   )
-            // ) {
-            //   locationArr.push(
-            //     result.getValue({
-            //       name: "location",
-            //     })
-            //   );
-            //   locationField.addSelectOption({
-            //     value: result.getValue({
-            //       name: "location",
-            //     }),
-            //     text: result.getText({
-            //       name: "location",
-            //     }),
-            //   });
-            // }
-
-            // if (
-            //   !departmentArr.includes(
-            //     result.getValue({
-            //       name: "department",
-            //     })
-            //   )
-            // ) {
-            //   departmentArr.push(
-            //     result.getValue({
-            //       name: "department",
-            //     })
-            //   );
-
-            //   departmentField.addSelectOption({
-            //     value: result.getValue({
-            //       name: "department",
-            //     }),
-            //     text:
-            //       result.getText({
-            //         name: "department",
-            //       }) || "",
-            //   });
-            // }
-
-            // if (
-            //   !classArr.includes(
-            //     result.getValue({
-            //       name: "class",
-            //     })
-            //   )
-            // ) {
-            //   classArr.push(
-            //     result.getValue({
-            //       name: "class",
-            //     })
-            //   );
-            //   classField.addSelectOption({
-            //     value: result.getValue({
-            //       name: "class",
-            //     }),
-            //     text:
-            //       result.getText({
-            //         name: "class",
-            //       }) || "",
-            //   });
-            // }
-
-            // //////// item details sublist ///////
-
-            // itemDetailsSublist.setSublistValue({
-            //   id: "item_field",
-            //   line: i,
-            //   value:
-            //     result.getText({
-            //       name: "item",
-            //     }) || "",
-            // });
-            // itemDetailsSublist.setSublistValue({
-            //   id: "rate_field",
-            //   line: i,
-            //   value:
-            //     result.getValue({
-            //       name: "rate",
-            //     }) || 0,
-            // });
-            // itemDetailsSublist.setSublistValue({
-            //   id: "quantity_field",
-            //   line: i,
-            //   value:
-            //     result.getValue({
-            //       name: "quantity",
-            //     }) || 0,
-            // });
-
-            // itemDetailsSublist.setSublistValue({
-            //   id: "shipdate_field",
-            //   line: i,
-            //   value:
-            //     result.getValue({
-            //       name: "shipdate",
-            //     }) || 0,
-            // });
-
-            // i++;
+            i++;
 
             return true;
           });
 
-        log.debug({
-          title: "search Results:",
-          details: uiDataSearchResults,
-        });
+        search
+          .create({
+            type: "location",
+            filters: [
+              ["subsidiary", "anyof", "2"],
+              "AND",
+              ["isinactive", "is", "F"],
+            ],
+            columns: ["internalid", "namenohierarchy"],
+          })
+          .run()
+          .each((result) => {
+            locationField.addSelectOption({
+              value: result.getValue({
+                name: "internalid",
+              }),
+              text:
+                result.getValue({
+                  name: "namenohierarchy",
+                }) || "",
+            });
 
-        // const locationArr = [];
-
-        // search
-        //   .create({
-        //     type: recordType,
-        //     filters: [
-        //       ["subsidiary", "anyof", subsidiary],
-        //       "AND",
-        //       ["mainline", "is", "F"],
-        //     ],
-        //     columns: ["location"],
-        //   })
-        //   .run()
-        //   .each((result) => {
-        //     if (
-        //       result.getValue({
-        //         name: "location",
-        //       }) <= 0
-        //     )
-        //       return;
-
-        //     if (
-        //       !locationArr.includes(
-        //         result.getValue({
-        //           name: "location",
-        //         })
-        //       )
-        //     ) {
-        //       locationArr.push(
-        //         result.getValue({
-        //           name: "location",
-        //         })
-        //       );
-        //     }
-
-        //     log.debug({
-        //       title: "loc search results:",
-        //       details: result,
-        //     });
-        //     return true;
-        //   });
-
-        // log.debug({
-        //   title: "subsidiary Arr AFTER:",
-        //   details: subsidiaryArr,
-        // });
+            return true;
+          });
 
         const submitButton = salesOrderCopyForm.addSubmitButton({
           label: "Submit Record",
@@ -442,47 +296,11 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         // when form is submitted, a POST request is called when the submitButton is clicked!
 
         const reqParams = context.request.parameters;
-        log.debug({
-          title: "POST parameters:",
-          details: reqParams,
-        });
-
         const requestObj = context.request;
 
-        log.debug({
-          title: "Request Obj",
-          details: requestObj,
-        });
-
-        const recordId = reqParams.record_id_hidden;
-        const recordType = reqParams.record_type_hidden;
-
-        log.debug({
-          title: "POST: recordType & recordId:",
-          details: [recordType, "AND", recordId],
-        });
-
-        // Form: Customer Details values:
-        const classFieldValue = reqParams.inpt_class_field;
-
-        log.debug({
-          title: "classFieldValue:",
-          details: classFieldValue,
-        });
-
-        const departmentFieldValue = reqParams.inpt_department_field;
-
-        log.debug({
-          title: "departmentFieldValue",
-          details: departmentFieldValue,
-        });
-
-        const locationFieldValue = reqParams.inpt_location_field;
-
-        log.debug({
-          title: "locationFieldValue",
-          details: locationFieldValue,
-        });
+        // these were our hidden form field values
+        const recordId = reqParams.custpage_record_id_hidden;
+        const recordType = reqParams.custpage_record_type_hidden;
 
         const sublistLineCount = requestObj.getLineCount({
           group: "custpage_item_details_sublist",
@@ -494,61 +312,87 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
           id: recordId,
         });
 
-        log.debug({
-          title: "copiedRecord",
-          details: copiedRecord,
-        });
+        // traverse sublist lines from bottom to top
+        for (let i = sublistLineCount - 1; i >= 0; i--) {
+          const checkbox = requestObj.getSublistValue({
+            group: "custpage_item_details_sublist",
+            line: i,
+            name: "custpage_checkbox_field",
+          });
+          // Only the lines that are checked are affected!:
+          if (checkbox === "F") {
+            // clears the sublist line from the copied record if checkbox is FALSE:
+            copiedRecord.removeLine({
+              sublistId: "item",
+              line: i,
+            });
+            continue;
+          } else {
+            const item = requestObj.getSublistValue({
+              group: "custpage_item_details_sublist",
+              line: i,
+              name: "custpage_item_field",
+            });
 
-        for (let i = 0; i < sublistLineCount.length; i++) {
-          const item = requestObj.getSublistValue({
-            group: "custpage_item_details_sublist",
-            line: i,
-            name: "item_field",
-          });
-          const rate = requestObj.getSublistValue({
-            group: "custpage_item_details_sublist",
-            line: i,
-            name: "rate_field",
-          });
-          const quantity = requestObj.getSublistValue({
-            group: "custpage_item_details_sublist",
-            line: i,
-            name: "quantity_field",
-          });
-          const shipDate = requestObj.getSublistValue({
-            group: "custpage_item_details_sublist",
-            line: i,
-            name: "shipdate_field",
-          });
+            const rate = requestObj.getSublistValue({
+              group: "custpage_item_details_sublist",
+              line: i,
+              name: "custpage_rate_field",
+            });
 
-          // set the sublist values on the copied Record
-          copiedRecord.setSublistValue({
-            sublistId: "custpage_item_details_sublist",
-            fieldId: "item_field",
-            line: i,
-            value: item,
-          });
-          copiedRecord.setSublistValue({
-            sublistId: "custpage_item_details_sublist",
-            fieldId: "rate_field",
-            line: i,
-            value: rate,
-          });
-          copiedRecord.setSublistValue({
-            sublistId: "custpage_item_details_sublist",
-            fieldId: "quantity_field",
-            line: i,
-            value: quantity,
-          });
-          copiedRecord.setSublistValue({
-            sublistId: "custpage_item_details_sublist",
-            fieldId: "shipdate_field",
-            line: i,
-            value: shipDate,
-          });
+            const quantity = requestObj.getSublistValue({
+              group: "custpage_item_details_sublist",
+              line: i,
+              name: "custpage_quantity_field",
+            });
+
+            const shipDate = requestObj.getSublistValue({
+              group: "custpage_item_details_sublist",
+              line: i,
+              name: "custpage_shipdate_field",
+            });
+
+            // set the sublist values on the copied Record
+            copiedRecord.setSublistValue({
+              sublistId: "item",
+              fieldId: "item_display",
+              line: i,
+              value: item,
+            });
+            copiedRecord.setSublistValue({
+              sublistId: "item",
+              fieldId: "rate",
+              line: i,
+              value: rate,
+            });
+            copiedRecord.setSublistValue({
+              sublistId: "item",
+              fieldId: "quantity",
+              line: i,
+              value: quantity,
+            });
+
+            const parsedDate = format.parse({
+              value: shipDate,
+              type: "date",
+            });
+
+            copiedRecord.setSublistValue({
+              sublistId: "item",
+              fieldId: "expectedshipdate",
+              line: i,
+              value: parsedDate,
+            });
+          }
         }
 
-        // // set the copied record!
+        // Customer Fieldgroup values from POST REQ
+        const locationFieldValue = reqParams.custpage_inpt_location_field;
+        const classFieldValue = reqParams.custpage_inpt_class_field;
+        const departmentFieldValue = reqParams.custpage_inpt_department_field;
+
+        // set Field Group Values on Copied Record:
+        // T
         copiedRecord.setValue({
           fieldId: "location",
           value: locationFieldValue,
@@ -565,12 +409,7 @@ define(["N/search", "N/ui/serverWidget", "N/record"], function (
         // on SAVE, returns a record id #
         const copiedRecordId = copiedRecord.save();
 
-        log.debug({
-          title: "copiedRecordId",
-          details: copiedRecordId,
-        });
-
-        // POST response:
+        // POST RES Redirect:
         context.response.sendRedirect({
           identifier: recordType,
           type: "RECORD",

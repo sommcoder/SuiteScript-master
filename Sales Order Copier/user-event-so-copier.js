@@ -29,16 +29,6 @@ define(["N/url", "N/ui/serverWidget"], function (url) {
       const contextType = context.type;
       const currRecordType = currRecord.type;
 
-      log.debug({
-        title: "currRecordType:",
-        details: currRecordType,
-      });
-
-      log.debug({
-        title: "currRecord:",
-        details: currRecord,
-      });
-
       if (currRecordType !== "salesorder") return; // guard clause
       if (contextType !== "view" && contextType !== "create") return; // guard clause
 
@@ -51,23 +41,8 @@ define(["N/url", "N/ui/serverWidget"], function (url) {
         fieldId: "tranid",
       });
 
-      log.debug({
-        title: "record tranId",
-        details: recordTranId,
-      });
-
-      log.debug({
-        title: "suiteletUrl",
-        details: suiteletUrl,
-      });
-
       const lnCount = currRecord.getLineCount({
         sublistId: "item",
-      });
-
-      log.debug({
-        title: "lnCount:",
-        details: lnCount,
       });
 
       // populates an array of all of the items on the current record!
@@ -83,11 +58,6 @@ define(["N/url", "N/ui/serverWidget"], function (url) {
         );
       }
 
-      log.debug({
-        title: "sublistValuesArr",
-        details: sublistValuesArr,
-      });
-
       const suiteletUrlParam = url.format({
         domain: suiteletUrl,
         params: {
@@ -96,11 +66,6 @@ define(["N/url", "N/ui/serverWidget"], function (url) {
           currRecordId: currRecordId,
           currRecordType: currRecordType,
         },
-      });
-
-      log.debug({
-        title: "suiteletUrlParam",
-        details: suiteletUrlParam,
       });
 
       const windowFeatures =
@@ -118,7 +83,6 @@ define(["N/url", "N/ui/serverWidget"], function (url) {
       });
     }
   }
-
   return {
     beforeLoad: beforeLoad,
   };

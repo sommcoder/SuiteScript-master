@@ -58,7 +58,6 @@ define(["N/ui/dialog"], function (dialog) {
   function setFieldObj(context) {
     try {
       currEmpRecord = context.currentRecord;
-      console.log(currEmpRecord);
       FIELD_IDS = {
         departmentFieldId: currEmpRecord.getField({
           fieldId: "department",
@@ -98,7 +97,6 @@ define(["N/ui/dialog"], function (dialog) {
   function validateField(context) {
     try {
       validationInput = context.fieldId;
-      console.log(validationInput);
 
       refreshRecordObj(context);
 
@@ -147,7 +145,6 @@ define(["N/ui/dialog"], function (dialog) {
     try {
       // which field was changed:
       fieldRecordChanged = context.fieldId;
-      console.log(fieldRecordChanged);
 
       // only department/location changes will run
       if (
@@ -236,7 +233,6 @@ define(["N/ui/dialog"], function (dialog) {
 
   function saveRecord(context) {
     try {
-      console.log(context);
       // assign a reference of current record
       currEmpRecord = context.currentRecord;
       if (currEmpRecord.type !== "employee") return false;

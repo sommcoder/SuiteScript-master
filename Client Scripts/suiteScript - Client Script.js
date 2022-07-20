@@ -46,26 +46,20 @@ define(["N/runtime"], function (runtime) {
     }
   }
   function validateField(context) {
-    console.log("validate field", context);
-
     return true;
     // validateField requires a boolean to be returned
   }
 
   function fieldChanged(context) {
-    console.log("field changed", context);
-
     if (context.fieldId != "subsidiary") return;
 
     subsidiaryChanged = context.currentRecord.getValue({
       fieldId: "subsidiary",
     });
-    console.log(typeof subsidiaryChanged);
 
     validatePhoneNumber(subsidiaryChanged);
-    console.log(subsidiaryChanged);
 
-    if (SubsidiaryChanged === "Canada")
+    if (subsidiaryChanged === "Canada")
       try {
         var fieldChanged = context.fieldId;
 
@@ -82,8 +76,6 @@ define(["N/runtime"], function (runtime) {
         var empNewName = empNewFirstName + "." + empNewLastName;
 
         var empNewEmail = empNewName.toLowerCase().concat("@myersholum.com");
-
-        console.log(empNewEmail);
 
         currRecord.setValue({
           fieldId: "email",
