@@ -35,7 +35,7 @@ define(["N/record", "N/search"], function (record, search) {
     try {
       /* 
       -SO and PO are linked through a custom field
-      -now that we have our script deploying on sales order and purchase order records
+      -now that we have our script deploying on sales order and item receipt records
       */
       const currRecord = context.newRecord;
       const currRecordId = currRecord.id;
@@ -46,6 +46,7 @@ define(["N/record", "N/search"], function (record, search) {
 
       //---------------Sales Order CONDITIONAL BLOCK:
       if (currRecordType === "salesorder") {
+        if (contextType !== "create") return;
         const custForm = currRecord.getValue({
           fieldId: "customform",
         });
@@ -95,7 +96,7 @@ define(["N/record", "N/search"], function (record, search) {
 
           log.debug({
             title: "the GOT values:",
-            details: gotValue,
+            details: [sharedFields[i], gotValue],
           });
           // set value on PO
           poRecord.setValue({
@@ -104,25 +105,15 @@ define(["N/record", "N/search"], function (record, search) {
           });
         }
 
-        log.debug({
-          title: "poRecord AFTER loop:",
-          details: poRecord,
-        });
-
         // unique PO fields:
         poRecord.setValue({
           fieldId: "entity", // entity = Vendor in a PO
           value: 1840, // Adam Smith CPA hard-coded Vendor
         });
 
-        log.debug({
-          title: "poRecord AFTER Entity:",
-          details: poRecord,
-        });
-
         // const poSublistFields = [];
 
-        const sharedSublistFields = [
+        const sharedSublistFieldsArr = [
           "item",
           "quantity",
           "description",
@@ -140,45 +131,60 @@ define(["N/record", "N/search"], function (record, search) {
         });
 
         // loop for like-sublist fields:
-        for (let l = 0; l <= numLines - 1; l++) {
+        for (let l = 0; l < numLines; l++) {
           log.debug({
-            title: "l value:",
-            details: l,
+            title: "line index:",
+            details: ["INDEX", l, "OF", numLines - 1],
           });
-          for (let i = 0; i < sharedSublistFields.length; i++) {
-            log.debug({
-              title: "i values",
-              details: i,
-            });
-            let soSublistValue =
-              currRecord.getSublistValue({
+
+          let lotNumberedItem = currRecord.getSublistValue({
+            sublistId: "item",
+            fieldId: "isnumbered",
+            line: l,
+          });
+
+          log.debug({
+            title: "lotNumberedItem",
+            details: lotNumberedItem,
+          });
+
+          if (lotNumberedItem === "T") {
+            for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
+              log.debug({
+                title: "field loop",
+                details: ["field loop index: ", i, " OF ", "index: ", l],
+              });
+              let soSublistValue =
+                currRecord.getSublistValue({
+                  sublistId: "item",
+                  fieldId: sharedSublistFieldsArr[i],
+                  line: l,
+                }) || 0;
+
+              log.debug({
+                title: "soSublistValue and i:",
+                details: [soSublistValue, i],
+              });
+
+              poRecord.setSublistValue({
                 sublistId: "item",
-                fieldId: sharedSublistFields[i],
+                fieldId: sharedSublistFieldsArr[i],
                 line: l,
-              }) || 0;
-            log.debug({
-              title: "soSublistValue:",
-              details: soSublistValue,
-            });
+                value: soSublistValue,
+              });
 
-            poRecord.setSublistValue({
-              sublistId: "item",
-              fieldId: sharedSublistFields[i],
-              line: l,
-              value: soSublistValue,
-            });
+              // link SO customer, set on each item line in PO
+              const customer = currRecord.getValue({
+                fieldId: "entity",
+              });
 
-            // link SO customer, set on each item line in PO
-            const customer = currRecord.getValue({
-              fieldId: "entity",
-            });
-
-            poRecord.setSublistValue({
-              sublistId: "item",
-              fieldId: "customer",
-              line: l,
-              value: customer,
-            });
+              poRecord.setSublistValue({
+                sublistId: "item",
+                fieldId: "customer",
+                line: l,
+                value: customer,
+              });
+            }
           }
         }
 
@@ -238,8 +244,9 @@ define(["N/record", "N/search"], function (record, search) {
           sublistId: "item",
         });
 
+        // an array of inventoryDetail subRecord Objects
         const inventoryDetailsArr = [];
-        // create a loop and push to arr in the situation in which there are MULTIPLE items and therefore multiple inventory details
+        // create a loop and push to arr in the situation in which there are MULTIPLE items and therefore multiple inventory detail subrecords
         for (let l = 0; l < itemLines; l++) {
           inventoryDetailsArr.push(
             currRecord.getSublistSubrecord({
@@ -264,7 +271,7 @@ define(["N/record", "N/search"], function (record, search) {
         });
 
         log.debug({
-          title: "Search Result:",
+          title: "SO Search Result:",
           details: soRecordId.custbody14[0].value,
         });
 
@@ -273,6 +280,9 @@ define(["N/record", "N/search"], function (record, search) {
           details: inventoryDetailsArr,
         });
 
+        //////////////////////////////////////////////////////////////////////
+        // This is ONE of the few exceptions where we HAVE to use record.load
+        //////////////////////////////////////////////////////////////////////
         const salesOrderRecord = record.load({
           type: "salesorder",
           id: soRecordId.custbody14[0].value,
@@ -285,19 +295,21 @@ define(["N/record", "N/search"], function (record, search) {
           details: currRecordId,
         });
 
-
-        search.createFilter({
-          name: string,
-          join: string,
-          operator: string,
-          values: 
-        })
+        let lotNumber;
+        let i = 0;
+        let invDetailSubrecord;
 
         search
           .create({
             type: "transaction",
-            filter: [["internalidnumber", "equalto", currRecordId]], // item receipt id
-            columns: ["serialnumbers"],
+            filters: [
+              ["internalidnumber", "equalto", currRecordId],
+              "AND",
+              ["recordtype", "is", "itemreceipt"],
+              "AND",
+              ["mainline", "is", "F"],
+            ],
+            columns: "serialnumbers",
           })
           .run()
           .each((result) => {
@@ -305,24 +317,62 @@ define(["N/record", "N/search"], function (record, search) {
               title: "Saved Search Result:",
               details: result,
             });
+            lotNumber = result.getValue({
+              name: "serialnumbers",
+            });
+
+            log.debug({
+              title: "lotnumber:",
+              details: lotNumber,
+            });
+
+            invDetailSubrecord = salesOrderRecord.getSublistSubrecord({
+              sublistId: "item",
+              fieldId: "inventorydetail",
+              line: i,
+            });
+
+            log.debug({
+              title: "invDetailSubrecord",
+              details: invDetailSubrecord,
+            });
+
+            // get quantity from invDetailsArr containing all of the subRecords from the Item Receipt
+            let quantity = inventoryDetailsArr[i].getSublistValue({
+              sublistId: "inventoryassignment",
+              fieldId: "quantity",
+              line: i,
+            });
+
+            log.debug({
+              title: "quantity:",
+              details: quantity,
+            });
+
+            invDetailSubrecord.setSublistValue({
+              sublistId: "inventoryassignment",
+              fieldId: "quantity",
+              line: i,
+              value: quantity,
+            });
+
+            invDetailSubrecord.setSublistValue({
+              sublistId: "inventoryassignment",
+              fieldId: "receiptinventorynumber",
+              line: i,
+              value: lotNumber,
+            });
+
+            i++;
+            return true;
           });
-        // for (let i = 0; i < itemLines; i++) {
-        //   let lotNumber = inventoryDetailsArr[i].getSublistValue({
-        //     sublistId: "inventoryassignment",
-        //     fieldId: "issueinventorynumber",
-        //     line: i,
-        //   });
-        //   log.debug({
-        //     title: "Lot Number Result:",
-        //     details: lotNumber,
-        //   });
-        //   salesOrderRecord.setSublistValue({
-        //     sublistId: "item",
-        //     fieldId: "inventorydetail",
-        //     line: i,
-        //     value: lotNumber,
-        //   });
-        // }
+
+        log.debug({
+          title: "invDetailSubrecord AFTER search:",
+          details: invDetailSubrecord,
+        });
+
+        salesOrderRecord.save();
       }
     } catch (err) {
       log.debug({
