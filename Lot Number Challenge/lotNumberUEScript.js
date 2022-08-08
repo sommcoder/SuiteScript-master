@@ -295,9 +295,10 @@ define(["N/record", "N/search"], function (record, search) {
           details: currRecordId,
         });
 
-        let lotNumber;
+        // Global Search variables:
         let i = 0;
         let invDetailSubrecord;
+        let quantity;
 
         search
           .create({
@@ -305,11 +306,19 @@ define(["N/record", "N/search"], function (record, search) {
             filters: [
               ["internalidnumber", "equalto", currRecordId],
               "AND",
-              ["recordtype", "is", "itemreceipt"],
-              "AND",
               ["mainline", "is", "F"],
             ],
-            columns: "serialnumbers",
+            columns: [
+              search.createColumn({
+                name: "serialnumbers",
+                label: "Serial/Lot Numbers",
+              }),
+              search.createColumn({
+                name: "inventorynumber",
+                join: "inventoryDetail",
+                label: " Number",
+              }),
+            ],
           })
           .run()
           .each((result) => {
@@ -317,51 +326,64 @@ define(["N/record", "N/search"], function (record, search) {
               title: "Saved Search Result:",
               details: result,
             });
-            lotNumber = result.getValue({
-              name: "serialnumbers",
+
+            let lotNumberId = result.getValue({
+              name: "inventoryDetail.inventorynumber",
             });
 
             log.debug({
-              title: "lotnumber:",
-              details: lotNumber,
+              title: "lotNumberId",
+              details: lotNumberId,
             });
 
+            // get the SO INVdetail Subrecord from the ITEM sublist
             invDetailSubrecord = salesOrderRecord.getSublistSubrecord({
               sublistId: "item",
               fieldId: "inventorydetail",
               line: i,
             });
 
-            log.debug({
-              title: "invDetailSubrecord",
-              details: invDetailSubrecord,
-            });
-
-            // get quantity from invDetailsArr containing all of the subRecords from the Item Receipt
-            let quantity = inventoryDetailsArr[i].getSublistValue({
+            // get quantity from all of the subRecords from the Item Receipt located on the InvDetail Array
+            quantity = inventoryDetailsArr[i].getSublistValue({
               sublistId: "inventoryassignment",
               fieldId: "quantity",
-              line: i,
+              line: 1,
             });
+
+            log.debug({
+              title: "inventoryDetailsArr[i]:",
+              details: inventoryDetailsArr[i],
+            });
+
+            // inventoryAssignmentSublist = inventoryDetailsArr[i].getSublist({
+            //   sublistId: "inventoryassignment",
+            // });
+
+            // log.debug({
+            //   title: "inventoryAssignmentSublist:",
+            //   details: inventoryAssignmentSublist,
+            // });
 
             log.debug({
               title: "quantity:",
               details: quantity,
             });
 
-            invDetailSubrecord.setSublistValue({
-              sublistId: "inventoryassignment",
-              fieldId: "quantity",
-              line: i,
-              value: quantity,
-            });
+            // // set the sublist QUANTITY field on the inv detail
+            // invDetailSubrecord.setSublistValue({
+            //   sublistId: "inventoryassignment",
+            //   fieldId: "quantity",
+            //   line: i,
+            //   value: quantity,
+            // });
 
-            invDetailSubrecord.setSublistValue({
-              sublistId: "inventoryassignment",
-              fieldId: "receiptinventorynumber",
-              line: i,
-              value: lotNumber,
-            });
+            // // set the sublist
+            // invDetailSubrecord.setSublistValue({
+            //   sublistId: "inventoryassignment",
+            //   fieldId: "receiptinventorynumber",
+            //   line: i,
+            //   value: lotNumberId,
+            // });
 
             i++;
             return true;
