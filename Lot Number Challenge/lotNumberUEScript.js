@@ -240,23 +240,6 @@ define(["N/record", "N/search"], function (record, search) {
           details: contextType,
         });
 
-        const itemLines = currRecord.getLineCount({
-          sublistId: "item",
-        });
-
-        // an array of inventoryDetail subRecord Objects
-        const inventoryDetailsArr = [];
-        // create a loop and push to arr in the situation in which there are MULTIPLE items and therefore multiple inventory detail subrecords
-        for (let l = 0; l < itemLines; l++) {
-          inventoryDetailsArr.push(
-            currRecord.getSublistSubrecord({
-              sublistId: "item",
-              fieldId: "inventorydetail",
-              line: l,
-            })
-          );
-        }
-
         const soRecordId = search.lookupFields({
           type: "purchaseorder",
           id: currRecord.getValue({
@@ -275,11 +258,6 @@ define(["N/record", "N/search"], function (record, search) {
           details: soRecordId.custbody14[0].value,
         });
 
-        log.debug({
-          title: "inventoryDetailsArr:",
-          details: inventoryDetailsArr,
-        });
-
         //////////////////////////////////////////////////////////////////////
         // This is ONE of the few exceptions where we HAVE to use record.load
         //////////////////////////////////////////////////////////////////////
@@ -295,10 +273,13 @@ define(["N/record", "N/search"], function (record, search) {
           details: currRecordId,
         });
 
-        // Global Search variables:
+        // search global variables:
         let i = 0;
-        let invDetailSubrecord;
-        let quantity;
+        let lotNumberId;
+        let lineCountInvDetail_IR;
+        let invDetailSubrecord_IR;
+        let invDetailSubrecord_SO;
+        let invSubrecordQuantity;
 
         search
           .create({
@@ -327,74 +308,105 @@ define(["N/record", "N/search"], function (record, search) {
               details: result,
             });
 
-            let lotNumberId = result.getValue({
-              name: "inventoryDetail.inventorynumber",
-            });
-
-            log.debug({
-              title: "lotNumberId",
-              details: lotNumberId,
-            });
-
-            // get the SO INVdetail Subrecord from the ITEM sublist
-            invDetailSubrecord = salesOrderRecord.getSublistSubrecord({
+            // get the SUBRECORDS from both the IR and the SO:
+            invDetailSubrecord_IR = currRecord.getSublistSubrecord({
               sublistId: "item",
               fieldId: "inventorydetail",
               line: i,
             });
 
-            // get quantity from all of the subRecords from the Item Receipt located on the InvDetail Array
-            quantity = inventoryDetailsArr[i].getSublistValue({
+            log.debug({
+              title: "Inv Detail Subrecord_IR:",
+              details: invDetailSubrecord_IR,
+            });
+
+            lineCountInvDetail_IR = invDetailSubrecord_IR.getLineCount({
               sublistId: "inventoryassignment",
-              fieldId: "quantity",
-              line: 1,
             });
 
             log.debug({
-              title: "inventoryDetailsArr[i]:",
-              details: inventoryDetailsArr[i],
+              title: "IR line count:",
+              details: lineCountInvDetail_IR,
             });
 
-            // inventoryAssignmentSublist = inventoryDetailsArr[i].getSublist({
-            //   sublistId: "inventoryassignment",
-            // });
-
-            // log.debug({
-            //   title: "inventoryAssignmentSublist:",
-            //   details: inventoryAssignmentSublist,
-            // });
+            // get isnumbered boolean from the SO
+            lotNumberedItem = salesOrderRecord.getSublistValue({
+              sublistId: "item",
+              fieldId: "isnumbered",
+              line: i,
+            });
 
             log.debug({
-              title: "quantity:",
-              details: quantity,
+              title: "lot Numbered item?",
+              details: lotNumberedItem,
             });
 
-            // // set the sublist QUANTITY field on the inv detail
-            // invDetailSubrecord.setSublistValue({
-            //   sublistId: "inventoryassignment",
-            //   fieldId: "quantity",
-            //   line: i,
-            //   value: quantity,
-            // });
+            if (lotNumberedItem === "T") {
+              // if the SO line item is LOT NUMBERED, EXECUTE THE FOLLOWING:
+              // Set the IR inv detail subrecord on the SO by line number
+              // if the item Isn't lot numbered, the loop should iterate to the next line item
+              invDetailSubrecord_SO = salesOrderRecord.setSublistValue({
+                sublistId: "item",
+                fieldId: "inventorydetail",
+                line: i,
+                value: invDetailSubrecord_IR,
+              });
 
-            // // set the sublist
-            // invDetailSubrecord.setSublistValue({
-            //   sublistId: "inventoryassignment",
-            //   fieldId: "receiptinventorynumber",
-            //   line: i,
-            //   value: lotNumberId,
-            // });
+              log.debug({
+                title: "invDetailSubrecord_SO:",
+                details: invDetailSubrecord_SO,
+              });
+
+              // LOOP THROUGH EACH LINE OF THE INV DETAIL SUBRECORD:
+              for (let l = 0; l < lineCountInvDetail_IR; l++) {
+                // get the quantity from the IR's inv detailSubRecord by line
+                invSubrecordQuantity = invDetailSubrecord_IR.getSublistValue({
+                  sublistId: "inventoryassignment",
+                  fieldId: "quantity",
+                  line: l,
+                });
+
+                log.debug({
+                  title: "invSubrecordQuantity:",
+                  details: invSubrecordQuantity,
+                });
+
+                // get the internalId from the saved search query by result
+                lotNumberId = result.getValue({
+                  name: "inventorynumber",
+                  join: "inventoryDetail",
+                });
+
+                log.debug({
+                  title: "lotNumberId",
+                  details: lotNumberId,
+                });
+
+                // SET the quantity on the SO sub
+                invDetailSubrecord_SO.setSublistValue({
+                  sublistId: "inventoryassignment",
+                  fieldId: "quantity",
+                  line: l,
+                  value: invSubrecordQuantity,
+                });
+
+                // SET the lotNumbers internalId on the SO inv detail sub
+                invDetailSubrecord_SO.setSublistValue({
+                  sublistId: "inventoryassignment",
+                  fieldId: "receiptinventorynumber",
+                  line: l,
+                  value: lotNumberId,
+                });
+              }
+            }
+
+            // log the salesOrderRecord inventory details so we know it worked after each successful loop!
 
             i++;
             return true;
           });
 
-        log.debug({
-          title: "invDetailSubrecord AFTER search:",
-          details: invDetailSubrecord,
-        });
-
-        salesOrderRecord.save();
+        // salesOrderRecord.save();
       }
     } catch (err) {
       log.debug({
