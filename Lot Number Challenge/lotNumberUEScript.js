@@ -123,11 +123,12 @@ define(["N/record", "N/search"], function (record, search) {
           details: numLines,
         });
 
+        const skippedIndices = [];
         // loop for like-sublist fields:
         for (let l = 0; l < numLines; l++) {
           log.debug({
             title: "line index:",
-            details: ["INDEX", l, "OF LINE:", numLines - 1],
+            details: ["INDEX", l, "OF", numLines - 1, "INDICES"],
           });
 
           let lotNumberedItem = currRecord.getSublistValue({
@@ -142,12 +143,29 @@ define(["N/record", "N/search"], function (record, search) {
           });
 
           if (lotNumberedItem === "T") {
+            log.debug({
+              title: "skippedIndices[0]:",
+              details: skippedIndices[0],
+            });
+            // if the previous index was "skipped", the FIRST skipped index becomes the index we are to set the fields to in the following loop
+
             // if the item is LOT NUMBERED, loop through the items specified fields from the array
+            log.debug({
+              title: "value of l BEFORE skip check",
+              details: l,
+            });
+            if (skippedIndices[0]) l = skippedIndices[0];
+            // assign l to the VALUE of the FIRST skipped Index IF it evaluates to TRUE, an empty string is FALSEY
+            log.debug({
+              title: "skipped index: new value of l:",
+              details: l,
+            });
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
-              log.debug({
-                title: "field loop",
-                details: ["field loop index: ", i, " OF ", "index: ", l],
-              });
+              // log.debug({
+              //   title: "field loop",
+              //   details: ["index: ", i, " OF ", "line: ", l],
+              // });
+
               let soSublistValue =
                 currRecord.getSublistValue({
                   sublistId: "item",
@@ -155,10 +173,10 @@ define(["N/record", "N/search"], function (record, search) {
                   line: l,
                 }) || 0;
 
-              log.debug({
-                title: "soSublistValue and i:",
-                details: [sharedSublistFieldsArr[i], soSublistValue, i],
-              });
+              // log.debug({
+              //   title: "soSublistValue and i:",
+              //   details: [sharedSublistFieldsArr[i], soSublistValue, i],
+              // });
 
               poRecord.setSublistValue({
                 sublistId: "item",
@@ -178,16 +196,26 @@ define(["N/record", "N/search"], function (record, search) {
                 value: customer,
               });
             }
+            // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure needs to be a QUEUE than a STACK (FIFO):
+            skippedIndices.shift(0);
+            // check to ensure that the sublist is actually being set properly:
+            log.debug({
+              title: "item sublist POST loop:",
+              details: poRecord.getSublistValue({
+                sublistId: "item",
+                fieldId: "item",
+                line: l,
+              }),
+            });
           }
-          // check to ensure that the sublist is actually being set properly:
-          log.debug({
-            title: "item sublist POST loop:",
-            details: poRecord.getSublistValue({
-              sublistId: "item",
-              fieldId: "item",
-              line: l,
-            }),
-          });
+          // if the lot numbered item is 'F', add the index number to the skippedIndices array
+          else {
+            log.debug({
+              title: "Skipped Index:",
+              details: l,
+            });
+            skippedIndices.push(l);
+          }
         }
 
         // set the CustomForm on the PO record BEFORE saving it
