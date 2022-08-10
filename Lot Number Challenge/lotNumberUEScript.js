@@ -151,14 +151,14 @@ define(["N/record", "N/search"], function (record, search) {
 
             // if the item is LOT NUMBERED, loop through the items specified fields from the array
             log.debug({
-              title: "value of l BEFORE skip check",
+              title: "value of l BEFORE skip check:",
               details: l,
             });
             // perform this BEFORE the field loop
             if (skippedIndices[0]) l = skippedIndices[0];
             // assign l to the VALUE of the FIRST skipped Index IF it evaluates to TRUE, an empty string is FALSEY
             log.debug({
-              title: "skipped index: new value of l:",
+              title: "value of l AFTERWARDS:",
               details: l,
             });
             // FIELD-ID ARRAY LOOP
