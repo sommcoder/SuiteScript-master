@@ -276,10 +276,17 @@ define(["N/record", "N/search"], function (record, search) {
         // search global variables:
         let i = 0;
         let lotNumberId;
-        let lineCountInvDetail_IR;
-        let invDetailSubrecord_IR;
-        let invDetailSubrecord_SO;
-        let invSubrecordQuantity;
+        let invDetail_IR;
+        let invDetail_SO;
+        let invDetailQuantity;
+        let lineCountInvDetail_IR = invDetail_IR.getLineCount({
+          sublistId: "inventoryassignment",
+        });
+
+        log.debug({
+          title: "IR line count:",
+          details: lineCountInvDetail_IR,
+        });
 
         search
           .create({
@@ -309,7 +316,7 @@ define(["N/record", "N/search"], function (record, search) {
             });
 
             // get the SUBRECORDS from both the IR and the SO:
-            invDetailSubrecord_IR = currRecord.getSublistSubrecord({
+            invDetail_IR = currRecord.getSublistSubrecord({
               sublistId: "item",
               fieldId: "inventorydetail",
               line: i,
@@ -317,16 +324,7 @@ define(["N/record", "N/search"], function (record, search) {
 
             log.debug({
               title: "Inv Detail Subrecord_IR:",
-              details: invDetailSubrecord_IR,
-            });
-
-            lineCountInvDetail_IR = invDetailSubrecord_IR.getLineCount({
-              sublistId: "inventoryassignment",
-            });
-
-            log.debug({
-              title: "IR line count:",
-              details: lineCountInvDetail_IR,
+              details: invDetail_IR,
             });
 
             // get isnumbered boolean from the SO
@@ -345,30 +343,37 @@ define(["N/record", "N/search"], function (record, search) {
               // if the SO line item is LOT NUMBERED, EXECUTE THE FOLLOWING:
               // Set the IR inv detail subrecord on the SO by line number
               // if the item Isn't lot numbered, the loop should iterate to the next line item
-              invDetailSubrecord_SO = salesOrderRecord.setSublistValue({
+
+              invDetail_SO = salesOrderRecord.getSublistSubrecord({
                 sublistId: "item",
                 fieldId: "inventorydetail",
                 line: i,
-                value: invDetailSubrecord_IR,
               });
 
+              // invDetail_SO.setSublistValue({
+              //   sublistId: "assignment",
+              //   fieldId: "inventorydetail",
+              //   line: i,
+              //   value: invDetail_IR,
+              // });
+
               log.debug({
-                title: "invDetailSubrecord_SO:",
-                details: invDetailSubrecord_SO,
+                title: "invDetail_SO:",
+                details: invDetail_SO,
               });
 
               // LOOP THROUGH EACH LINE OF THE INV DETAIL SUBRECORD:
               for (let l = 0; l < lineCountInvDetail_IR; l++) {
                 // get the quantity from the IR's inv detailSubRecord by line
-                invSubrecordQuantity = invDetailSubrecord_IR.getSublistValue({
+                invDetailQuantity = invDetail_IR.getSublistValue({
                   sublistId: "inventoryassignment",
                   fieldId: "quantity",
                   line: l,
                 });
 
                 log.debug({
-                  title: "invSubrecordQuantity:",
-                  details: invSubrecordQuantity,
+                  title: "invDetailQuantity:",
+                  details: invDetailQuantity,
                 });
 
                 // get the internalId from the saved search query by result
@@ -383,15 +388,15 @@ define(["N/record", "N/search"], function (record, search) {
                 });
 
                 // SET the quantity on the SO sub
-                invDetailSubrecord_SO.setSublistValue({
+                invDetail_SO.setSublistValue({
                   sublistId: "inventoryassignment",
                   fieldId: "quantity",
                   line: l,
-                  value: invSubrecordQuantity,
+                  value: invDetailQuantity,
                 });
 
                 // SET the lotNumbers internalId on the SO inv detail sub
-                invDetailSubrecord_SO.setSublistValue({
+                invDetail_SO.setSublistValue({
                   sublistId: "inventoryassignment",
                   fieldId: "receiptinventorynumber",
                   line: l,
