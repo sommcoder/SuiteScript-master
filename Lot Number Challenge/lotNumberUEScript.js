@@ -54,19 +54,19 @@ define(["N/record", "N/search"], function (record, search) {
         // Custom Form guard clause:
         if (custForm !== "340") return;
 
-        log.debug({
-          title: "newRecordId:",
-          details: currRecordId,
-        });
+        // log.debug({
+        //   title: "newRecordId:",
+        //   details: currRecordId,
+        // });
 
         const poRecord = record.create({
           type: "purchaseorder",
         });
 
-        log.debug({
-          title: "poRecord BEFORE loop:",
-          details: poRecord,
-        });
+        // log.debug({
+        //   title: "poRecord BEFORE loop:",
+        //   details: poRecord,
+        // });
 
         // ITEMs must be LOT NUMBERED
         // hard-code a VENDER on the Purchase Order
@@ -82,18 +82,11 @@ define(["N/record", "N/search"], function (record, search) {
           "location",
         ];
 
-        // loop shared fields:
+        // loop shared BODY FIELDS:
         for (let i = 0; i < sharedFields.length; i++) {
-          // get value from SO
           const gotValue = currRecord.getValue({
             fieldId: sharedFields[i],
           });
-
-          log.debug({
-            title: "the GOT values:",
-            details: [sharedFields[i], gotValue],
-          });
-          // set value on PO
           poRecord.setValue({
             fieldId: sharedFields[i],
             value: gotValue,
@@ -118,18 +111,18 @@ define(["N/record", "N/search"], function (record, search) {
           sublistId: "item",
         });
 
-        log.debug({
-          title: "numLines",
-          details: numLines,
-        });
+        // log.debug({
+        //   title: "numLines",
+        //   details: numLines,
+        // });
 
         const skippedIndices = [];
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
-          log.debug({
-            title: "line index:",
-            details: ["INDEX", l, "OF", numLines - 1, "INDICES"],
-          });
+          // log.debug({
+          //   title: "line index:",
+          //   details: ["INDEX", l, "OF", numLines - 1, "INDICES"],
+          // });
 
           let lotNumberedItem = currRecord.getSublistValue({
             sublistId: "item",
@@ -137,39 +130,37 @@ define(["N/record", "N/search"], function (record, search) {
             line: l,
           });
 
-          log.debug({
-            title: "lotNumberedItem",
-            details: lotNumberedItem,
-          });
+          // log.debug({
+          //   title: "lotNumberedItem",
+          //   details: lotNumberedItem,
+          // });
 
           if (lotNumberedItem === "T") {
-            log.debug({
-              title: "l's value BEFORE field loop:",
-              details: l,
-            });
+            // log.debug({
+            //   title: "l: get from index:",
+            //   details: l,
+            // });
+            // log.debug({
+            //   title: "ternary exp: get on index:",
+            //   details: skippedIndices[0] ? skippedIndices[0] : l,
+            // });
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
-              // log.debug({
-              //   title: "field loop",
-              //   details: ["index: ", i, " OF ", "line: ", l],
-              // });
-
-              // if there is a skipped index in the array, l gets reassigned to this value, else: l
               let soSublistValue =
                 currRecord.getSublistValue({
                   sublistId: "item",
                   fieldId: sharedSublistFieldsArr[i],
-                  line: skippedIndices[0] ? (l = skippedIndices[0]) : l,
+                  line: l,
                 }) || 0;
 
               // log.debug({
-              //   title: "soSublistValue and i:",
-              //   details: [sharedSublistFieldsArr[i], soSublistValue, i],
+              //   title: "soSublistValue from l:",
+              //   details: [sharedSublistFieldsArr[i], soSublistValue, "FROM", l],
               // });
 
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: sharedSublistFieldsArr[i],
-                line: l,
+                line: skippedIndices[0] ? skippedIndices[0] : l,
                 value: soSublistValue,
               });
 
@@ -177,10 +168,11 @@ define(["N/record", "N/search"], function (record, search) {
               const customer = currRecord.getValue({
                 fieldId: "entity",
               });
+
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: "customer",
-                line: l,
+                line: skippedIndices[0] ? skippedIndices[0] : l,
                 value: customer,
               });
             }
