@@ -124,7 +124,7 @@ define(["N/record", "N/search"], function (record, search) {
         });
 
         const skippedIndices = [];
-        // loop for like-sublist fields:
+        // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
           log.debug({
             title: "line index:",
@@ -154,12 +154,14 @@ define(["N/record", "N/search"], function (record, search) {
               title: "value of l BEFORE skip check",
               details: l,
             });
+            // perform this BEFORE the field loop
             if (skippedIndices[0]) l = skippedIndices[0];
             // assign l to the VALUE of the FIRST skipped Index IF it evaluates to TRUE, an empty string is FALSEY
             log.debug({
               title: "skipped index: new value of l:",
               details: l,
             });
+            // FIELD-ID ARRAY LOOP
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
               // log.debug({
               //   title: "field loop",
