@@ -46,18 +46,13 @@ define(["N/record", "N/search"], function (record, search) {
 
       //---------------Sales Order CONDITIONAL BLOCK:
       if (currRecordType === "salesorder") {
-        if (contextType !== "create") return;
+        if (contextType !== "edit") return;
         const custForm = currRecord.getValue({
           fieldId: "customform",
         });
 
         // Custom Form guard clause:
         if (custForm !== "340") return;
-
-        log.debug({
-          title: "passed gaurd clause?",
-          details: "yes!",
-        });
 
         log.debug({
           title: "newRecordId:",
@@ -111,8 +106,6 @@ define(["N/record", "N/search"], function (record, search) {
           value: 1840, // Adam Smith CPA hard-coded Vendor
         });
 
-        // const poSublistFields = [];
-
         const sharedSublistFieldsArr = [
           "item",
           "quantity",
@@ -134,7 +127,7 @@ define(["N/record", "N/search"], function (record, search) {
         for (let l = 0; l < numLines; l++) {
           log.debug({
             title: "line index:",
-            details: ["INDEX", l, "OF", numLines - 1],
+            details: ["INDEX", l, "OF LINE:", numLines - 1],
           });
 
           let lotNumberedItem = currRecord.getSublistValue({
@@ -149,6 +142,7 @@ define(["N/record", "N/search"], function (record, search) {
           });
 
           if (lotNumberedItem === "T") {
+            // if the item is LOT NUMBERED, loop through the items specified fields from the array
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
               log.debug({
                 title: "field loop",
@@ -163,7 +157,7 @@ define(["N/record", "N/search"], function (record, search) {
 
               log.debug({
                 title: "soSublistValue and i:",
-                details: [soSublistValue, i],
+                details: [sharedSublistFieldsArr[i], soSublistValue, i],
               });
 
               poRecord.setSublistValue({
@@ -173,11 +167,10 @@ define(["N/record", "N/search"], function (record, search) {
                 value: soSublistValue,
               });
 
-              // link SO customer, set on each item line in PO
+              // link SO ENTITY, set as CUSTOMER on each item line in PO:
               const customer = currRecord.getValue({
                 fieldId: "entity",
               });
-
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: "customer",
@@ -186,6 +179,15 @@ define(["N/record", "N/search"], function (record, search) {
               });
             }
           }
+          // check to ensure that the sublist is actually being set properly:
+          log.debug({
+            title: "item sublist POST loop:",
+            details: poRecord.getSublistValue({
+              sublistId: "item",
+              fieldId: "item",
+              line: l,
+            }),
+          });
         }
 
         // set the CustomForm on the PO record BEFORE saving it
@@ -194,35 +196,37 @@ define(["N/record", "N/search"], function (record, search) {
           value: "341",
         });
 
+        // set the custom field on the PO to be the link to the SO
         poRecord.setValue({
           fieldId: "custbody14",
           value: currRecordId,
         });
 
-        const poRecordId = poRecord.save();
-
-        const soRecord = record.submitFields({
-          type: "salesorder",
-          id: currRecordId,
-          values: {
-            custbody14: poRecordId,
-          },
-        });
+        // const poRecordId = poRecord.save();
 
         log.debug({
           title: "PO Record AFTER Sublist Loop:",
-          details: [poRecordId, poRecord],
+          details: poRecord,
         });
 
-        log.debug({
-          title: "poRecordId:",
-          details: poRecordId,
-        });
+        // log.debug({
+        //   title: "poRecordId:",
+        //   details: poRecordId,
+        // });
 
-        log.debug({
-          title: "soRecordId:",
-          details: soRecord.id,
-        });
+        // submit Fields to get the SO record
+        // const soRecord = record.submitFields({
+        //   type: "salesorder",
+        //   id: currRecordId,
+        //   values: {
+        //     custbody14: poRecordId,
+        //   },
+        // });
+
+        // log.debug({
+        //   title: "soRecordId:",
+        //   details: soRecord.id,
+        // });
       }
 
       //---------------- Item Receipt CONDITIONAL BLOCK:
