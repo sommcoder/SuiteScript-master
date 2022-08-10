@@ -144,35 +144,21 @@ define(["N/record", "N/search"], function (record, search) {
 
           if (lotNumberedItem === "T") {
             log.debug({
-              title: "skippedIndices[0]:",
-              details: skippedIndices[0],
-            });
-            // if the previous index was "skipped", the FIRST skipped index becomes the index we are to set the fields to in the following loop
-
-            // if the item is LOT NUMBERED, loop through the items specified fields from the array
-            log.debug({
-              title: "value of l BEFORE skip check:",
+              title: "l's value BEFORE field loop:",
               details: l,
             });
-            // perform this BEFORE the field loop
-            if (skippedIndices[0]) l = skippedIndices[0];
-            // assign l to the VALUE of the FIRST skipped Index IF it evaluates to TRUE, an empty string is FALSEY
-            log.debug({
-              title: "value of l AFTERWARDS:",
-              details: l,
-            });
-            // FIELD-ID ARRAY LOOP
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
               // log.debug({
               //   title: "field loop",
               //   details: ["index: ", i, " OF ", "line: ", l],
               // });
 
+              // if there is a skipped index in the array, l gets reassigned to this value, else: l
               let soSublistValue =
                 currRecord.getSublistValue({
                   sublistId: "item",
                   fieldId: sharedSublistFieldsArr[i],
-                  line: l,
+                  line: skippedIndices[0] ? (l = skippedIndices[0]) : l,
                 }) || 0;
 
               // log.debug({
@@ -232,31 +218,31 @@ define(["N/record", "N/search"], function (record, search) {
           value: currRecordId,
         });
 
-        // const poRecordId = poRecord.save();
+        const poRecordId = poRecord.save();
 
         log.debug({
           title: "PO Record AFTER Sublist Loop:",
           details: poRecord,
         });
 
-        // log.debug({
-        //   title: "poRecordId:",
-        //   details: poRecordId,
-        // });
+        log.debug({
+          title: "poRecordId:",
+          details: poRecordId,
+        });
 
         // submit Fields to get the SO record
-        // const soRecord = record.submitFields({
-        //   type: "salesorder",
-        //   id: currRecordId,
-        //   values: {
-        //     custbody14: poRecordId,
-        //   },
-        // });
+        const soRecord = record.submitFields({
+          type: "salesorder",
+          id: currRecordId,
+          values: {
+            custbody14: poRecordId,
+          },
+        });
 
-        // log.debug({
-        //   title: "soRecordId:",
-        //   details: soRecord.id,
-        // });
+        log.debug({
+          title: "soRecordId:",
+          details: soRecord.id,
+        });
       }
 
       //---------------- Item Receipt CONDITIONAL BLOCK:
