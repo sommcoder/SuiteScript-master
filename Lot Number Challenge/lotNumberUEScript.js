@@ -116,7 +116,8 @@ define(["N/record", "N/search"], function (record, search) {
         //   details: numLines,
         // });
 
-        const skippedIndices = [];
+        const skippedIndices_IR = [];
+        let invDetail_IR;
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
           // log.debug({
@@ -136,13 +137,23 @@ define(["N/record", "N/search"], function (record, search) {
           // });
 
           if (lotNumberedItem === "T") {
+            invDetail_IR = currRecord.getSublistSubrecord({
+              sublistId: "item",
+              fieldId: "inventorydetail",
+              line: l,
+            });
+
+            log.debug({
+              title: "invDetail_IR",
+              details: invDetail_IR,
+            });
             // log.debug({
             //   title: "l: get from index:",
             //   details: l,
             // });
             // log.debug({
             //   title: "ternary exp: get on index:",
-            //   details: skippedIndices[0] ? skippedIndices[0] : l,
+            //   details: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
             // });
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
               let soSublistValue =
@@ -160,7 +171,7 @@ define(["N/record", "N/search"], function (record, search) {
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: sharedSublistFieldsArr[i],
-                line: skippedIndices[0] ? skippedIndices[0] : l,
+                line: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
                 value: soSublistValue,
               });
 
@@ -172,12 +183,12 @@ define(["N/record", "N/search"], function (record, search) {
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: "customer",
-                line: skippedIndices[0] ? skippedIndices[0] : l,
+                line: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
                 value: customer,
               });
             }
             // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure needs to be a QUEUE than a STACK (FIFO):
-            skippedIndices.shift(0);
+            skippedIndices_IR.shift(0);
             // check to ensure that the sublist is actually being set properly:
             log.debug({
               title: "item sublist POST loop:",
@@ -188,13 +199,13 @@ define(["N/record", "N/search"], function (record, search) {
               }),
             });
           }
-          // if the lot numbered item is 'F', add the index number to the skippedIndices array
+          // if the lot numbered item is 'F', add the index number to the skippedIndices_IR array
           else {
             log.debug({
               title: "Skipped Index:",
               details: l,
             });
-            skippedIndices.push(l);
+            skippedIndices_IR.push(l);
           }
         }
 
@@ -273,7 +284,7 @@ define(["N/record", "N/search"], function (record, search) {
         //////////////////////////////////////////////////////////////////////
         // This is ONE of the few exceptions where we HAVE to use record.load
         //////////////////////////////////////////////////////////////////////
-        const salesOrderRecord = record.load({
+        const soRecord = record.load({
           type: "salesorder",
           id: soRecordId.custbody14[0].value,
         });
@@ -286,19 +297,11 @@ define(["N/record", "N/search"], function (record, search) {
         });
 
         // search global variables:
-        let i = 0;
-        let lotNumberId;
-        let invDetail_IR;
         let invDetail_SO;
-        let invDetailQuantity;
-        let lineCountInvDetail_IR = invDetail_IR.getLineCount({
-          sublistId: "inventoryassignment",
-        });
 
-        log.debug({
-          title: "IR line count:",
-          details: lineCountInvDetail_IR,
-        });
+        // item grouping variables:
+        const lotNumberItemGroups = {};
+        let item, lot, quantity;
 
         search
           .create({
@@ -309,121 +312,148 @@ define(["N/record", "N/search"], function (record, search) {
               ["mainline", "is", "F"],
             ],
             columns: [
-              search.createColumn({
-                name: "serialnumbers",
-                label: "Serial/Lot Numbers",
-              }),
+              "serialnumbers",
               search.createColumn({
                 name: "inventorynumber",
                 join: "inventoryDetail",
-                label: " Number",
               }),
+              search.createColumn({
+                name: "quantity",
+                join: "inventoryDetail",
+              }),
+              "item",
+              "number",
             ],
           })
           .run()
           .each((result) => {
             log.debug({
-              title: "Saved Search Result:",
+              title: "result:",
               details: result,
             });
+            item = result.getValue({
+              name: "item",
+            });
 
-            // get the SUBRECORDS from both the IR and the SO:
-            invDetail_IR = currRecord.getSublistSubrecord({
-              sublistId: "item",
-              fieldId: "inventorydetail",
-              line: i,
+            lotId = result.getValue({
+              name: "inventorynumber",
+              join: "inventoryDetail",
+            });
+
+            quantity = result.getValue({
+              name: "quantity",
+              join: "inventoryDetail",
+            });
+
+            // lotNum = result.getValue({
+            //   name: "issueinventorynumber",
+            // });
+
+            ///////////////// object template:
+            // object = {
+            //   item: [
+            //     { lot: lot, quantity: quantity },
+            //     { lot: lot, quantity: quantity },
+            //   ],
+            //   item: [
+            //     { lot: lot, quantity: quantity },
+            //     { lot: lot, quantity: quantity },
+            //   ],
+            // };
+
+            // if no item object exists yet, create one and assign it to an array of {lot: quantity} pairings
+            if (!lotNumberItemGroups[item]) lotNumberItemGroups[item] = [];
+
+            // each pass includes
+            lotNumberItemGroups[item].push({
+              lot: lotId,
+              quantity: quantity,
             });
 
             log.debug({
-              title: "Inv Detail Subrecord_IR:",
-              details: invDetail_IR,
+              title: "lotNumberItemGroups:",
+              details: lotNumberItemGroups,
             });
-
-            // get isnumbered boolean from the SO
-            lotNumberedItem = salesOrderRecord.getSublistValue({
-              sublistId: "item",
-              fieldId: "isnumbered",
-              line: i,
-            });
-
-            log.debug({
-              title: "lot Numbered item?",
-              details: lotNumberedItem,
-            });
-
-            if (lotNumberedItem === "T") {
-              // if the SO line item is LOT NUMBERED, EXECUTE THE FOLLOWING:
-              // Set the IR inv detail subrecord on the SO by line number
-              // if the item Isn't lot numbered, the loop should iterate to the next line item
-
-              invDetail_SO = salesOrderRecord.getSublistSubrecord({
-                sublistId: "item",
-                fieldId: "inventorydetail",
-                line: i,
-              });
-
-              // invDetail_SO.setSublistValue({
-              //   sublistId: "assignment",
-              //   fieldId: "inventorydetail",
-              //   line: i,
-              //   value: invDetail_IR,
-              // });
-
-              log.debug({
-                title: "invDetail_SO:",
-                details: invDetail_SO,
-              });
-
-              // LOOP THROUGH EACH LINE OF THE INV DETAIL SUBRECORD:
-              for (let l = 0; l < lineCountInvDetail_IR; l++) {
-                // get the quantity from the IR's inv detailSubRecord by line
-                invDetailQuantity = invDetail_IR.getSublistValue({
-                  sublistId: "inventoryassignment",
-                  fieldId: "quantity",
-                  line: l,
-                });
-
-                log.debug({
-                  title: "invDetailQuantity:",
-                  details: invDetailQuantity,
-                });
-
-                // get the internalId from the saved search query by result
-                lotNumberId = result.getValue({
-                  name: "inventorynumber",
-                  join: "inventoryDetail",
-                });
-
-                log.debug({
-                  title: "lotNumberId",
-                  details: lotNumberId,
-                });
-
-                // SET the quantity on the SO sub
-                invDetail_SO.setSublistValue({
-                  sublistId: "inventoryassignment",
-                  fieldId: "quantity",
-                  line: l,
-                  value: invDetailQuantity,
-                });
-
-                // SET the lotNumbers internalId on the SO inv detail sub
-                invDetail_SO.setSublistValue({
-                  sublistId: "inventoryassignment",
-                  fieldId: "receiptinventorynumber",
-                  line: l,
-                  value: lotNumberId,
-                });
-              }
-            }
-
-            // log the salesOrderRecord inventory details so we know it worked after each successful loop!
-
-            i++;
             return true;
           });
 
-        // salesOrderRecord.save();
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // GET the line count of the SO item sublist:
+        let soItemLineCount = soRecord.getLineCount({
+          sublistId: "item",
+        });
+
+        log.debug({
+          title: "soItemLineCount",
+          details: soItemLineCount,
+        });
+
+        // LINE LOOP:
+        for (let l = 0; l < soItemLineCount; l++) {
+          // Determine if the line item is LOT NUMBERED:
+          lotNumberedItem = soRecord.getSublistValue({
+            sublistId: "item",
+            fieldId: "isnumbered",
+            line: l,
+          });
+          log.debug({
+            title: "lotNumberedItem?:",
+            details: lotNumberedItem,
+          });
+
+          if (lotNumberedItem === "T") {
+            // only bother GETTING the inv detail subrecord IF the item sublist item is lot numbered:
+            invDetail_SO = soRecord.getSublistSubrecord({
+              sublistId: "item",
+              fieldId: "inventorydetail",
+              line: l,
+            });
+
+            log.debug({
+              title: "invDetail_SO: got the invDetail?:",
+              details: invDetail_SO,
+            });
+
+            // LOT NUMBER LOOP:
+            let lotNumberCount;
+
+            // use the keys array as a REFERENCE within the forEach loop
+            Object.keys(lotNumberItemGroups).forEach((x) => {
+              lotNumberCount = lotNumberItemGroups[x].length;
+
+              for (let i = 0; i < lotNumberCount; i++) {
+                log.debug({
+                  title: "quantity value check?:",
+                  details: lotNumberItemGroups[x][i].quantity,
+                });
+                log.debug({
+                  title: "lot value check?:",
+                  details: lotNumberItemGroups[x][i].lot,
+                });
+                // SET the quantity on the SO sub:
+                invDetail_SO.setSublistValue({
+                  sublistId: "inventoryassignment",
+                  fieldId: "quantity",
+                  line: i,
+                  value: lotNumberItemGroups[x][i].quantity,
+                });
+
+                invDetail_SO.setSublistValue({
+                  sublistId: "inventoryassignment",
+                  fieldId: "issueinventorynumber",
+                  line: i,
+                  value: lotNumberItemGroups[x][i].lot,
+                });
+                log.debug({
+                  title: "invDetail_SO: lot number set?:",
+                  details: invDetail_SO,
+                });
+              }
+            });
+          }
+        }
+        soRecord.save();
       }
     } catch (err) {
       log.debug({
