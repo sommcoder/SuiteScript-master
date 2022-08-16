@@ -388,14 +388,9 @@ define(["N/record", "N/search"], function (record, search) {
           details: soItemLineCount,
         });
 
-        let invDetailItemCount = Object.keys(lotNumberItemGroups).length;
+        let i = 0; // the counter for each inventory detail sublist line
 
-        log.debug({
-          title: "invDetailItemCount:",
-          details: invDetailItemCount,
-        });
-
-        // LINE LOOP:
+        // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < soItemLineCount; l++) {
           // Determine if the line item is LOT NUMBERED:
           lotNumberedItem = soRecord.getSublistValue({
@@ -421,52 +416,53 @@ define(["N/record", "N/search"], function (record, search) {
               details: ["item sublist line:", l, "record:", invDetail_SO],
             });
 
-            // LOT NUMBER LOOP:
-            let lotNumberCount;
-
-            // use the keys array as a REFERENCE within the forEach loop
-            Object.keys(lotNumberItemGroups).forEach((x) => {
-              // this get's HOW many lot numbers are on each item's inv detail
-
-              for (let i = 0; i < invDetailItemCount; i++) {
-                log.debug({
-                  title: "SO setting values:",
-                  details: [
-                    "item",
-                    x,
-                    "quantity:",
-                    lotNumberItemGroups[x][i].quantity,
-                    "lot:",
-                    lotNumberItemGroups[x][i].lot,
-                  ],
-                });
-
-                // SET the quantity on the SO sub:
-                invDetail_SO.setSublistValue({
-                  sublistId: "inventoryassignment",
-                  fieldId: "quantity",
-                  line: i,
-                  value: lotNumberItemGroups[x][i].quantity,
-                });
-
-                invDetail_SO.setSublistValue({
-                  sublistId: "inventoryassignment",
-                  fieldId: "issueinventorynumber",
-                  line: i,
-                  value: lotNumberItemGroups[x][i].lot,
-                });
-                log.debug({
-                  title: "inventory detail:",
-                  details: ["lotNum line:", i, invDetail_SO],
-                });
-                /// should have two lot numbers on each inv detail subrecord!
-              }
+            log.debug({
+              title: "lotNumberItemGroups[i]",
+              details: lotNumberItemGroups[i],
             });
-          } else
+
+            //
+            // i = inv detail line number
+            lotNumberItemGroups[i].forEach((itm) => {
+              log.debug({
+                title: "SO setting values:",
+                details: [
+                  "item",
+                  itm,
+                  "quantity:",
+                  itm.quantity,
+                  "lot:",
+                  itm.lot,
+                ],
+              });
+
+              // SET the quantity on the SO sub:
+              invDetail_SO.setSublistValue({
+                sublistId: "inventoryassignment",
+                fieldId: "quantity",
+                line: i,
+                value: itm.quantity,
+              });
+
+              invDetail_SO.setSublistValue({
+                sublistId: "inventoryassignment",
+                fieldId: "issueinventorynumber",
+                line: i,
+                value: itm.lot,
+              });
+              log.debug({
+                title: "inventory detail:",
+                details: ["lotNum line:", i, invDetail_SO],
+              });
+            });
+            // AFTER the forEach loop is complete we go back to the line loop above
+            i++;
+          } else {
             log.debug({
               title: "skipped line #",
               details: ["skipped line:", l],
             });
+          }
         }
         soRecord.save();
       }
