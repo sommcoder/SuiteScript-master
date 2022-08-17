@@ -8,7 +8,7 @@ Link the PO to the Sales Order through a field and VICE VERSA (two-way link)
 On receipt of the Purchase Order I want you to ADD the LOTs received onto the Inventory Detail of the Sales order
 
 onSave, sales order creates a purchase order that is two-way linked
-onsave of receipt of the PO, add the LOT NUMBERS received onto the Inventory detail of the SO
+onsave of receipt of the PO, add the LOT NUMBERS received onto the Inventory detail subrecord of the SO
 
 Create the sales order for the buyer, onSave creates a PO for a seller for the items/quantityies on the Sales Order
 Think Amazon for products they don't MAKE themselves. They purchase it from the manufacturer and sell it to the consumer.
@@ -46,7 +46,7 @@ define(["N/record", "N/search"], function (record, search) {
 
       //---------------Sales Order CONDITIONAL BLOCK:
       if (currRecordType === "salesorder") {
-        if (contextType !== "edit") return;
+        if (contextType !== "create") return;
         const custForm = currRecord.getValue({
           fieldId: "customform",
         });
@@ -54,19 +54,19 @@ define(["N/record", "N/search"], function (record, search) {
         // Custom Form guard clause:
         if (custForm !== "340") return;
 
-        // log.debug({
-        //   title: "newRecordId:",
-        //   details: currRecordId,
-        // });
+        log.debug({
+          title: "newRecordId:",
+          details: currRecordId,
+        });
 
         const poRecord = record.create({
           type: "purchaseorder",
         });
 
-        // log.debug({
-        //   title: "poRecord BEFORE loop:",
-        //   details: poRecord,
-        // });
+        log.debug({
+          title: "poRecord BEFORE loop:",
+          details: poRecord,
+        });
 
         // ITEMs must be LOT NUMBERED
         // hard-code a VENDER on the Purchase Order
@@ -118,6 +118,7 @@ define(["N/record", "N/search"], function (record, search) {
 
         const skippedIndices_IR = [];
         let invDetail_IR;
+        let lotNumberedItem;
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
           // log.debug({
@@ -125,7 +126,7 @@ define(["N/record", "N/search"], function (record, search) {
           //   details: ["INDEX", l, "OF", numLines - 1, "INDICES"],
           // });
 
-          let lotNumberedItem = currRecord.getSublistValue({
+          lotNumberedItem = currRecord.getSublistValue({
             sublistId: "item",
             fieldId: "isnumbered",
             line: l,
@@ -163,10 +164,10 @@ define(["N/record", "N/search"], function (record, search) {
                   line: l,
                 }) || 0;
 
-              // log.debug({
-              //   title: "soSublistValue from l:",
-              //   details: [sharedSublistFieldsArr[i], soSublistValue, "FROM", l],
-              // });
+              log.debug({
+                title: "soSublistValue from l:",
+                details: [sharedSublistFieldsArr[i], soSublistValue, "FROM", l],
+              });
 
               poRecord.setSublistValue({
                 sublistId: "item",
@@ -289,6 +290,10 @@ define(["N/record", "N/search"], function (record, search) {
           id: soRecordId.custbody14[0].value,
         });
 
+        soRecord.getValue({
+          fieldId: "cust",
+        });
+
         // this is assuming the # of lines on the PO is the same on the SO, which it SHOULD be since the SO creates the PO:
 
         log.debug({
@@ -301,7 +306,7 @@ define(["N/record", "N/search"], function (record, search) {
 
         // item grouping variables:
         const lotNumberItemGroups = {};
-        let item, lot, quantity;
+        let lnKey, lotId, quantity;
 
         search
           .create({
@@ -321,8 +326,13 @@ define(["N/record", "N/search"], function (record, search) {
                 name: "quantity",
                 join: "inventoryDetail",
               }),
-              "item",
+              search.createColumn({
+                name: "internalid",
+                join: "inventoryDetail",
+              }),
               "number",
+              "lineuniquekey",
+              "item",
             ],
           })
           .run()
@@ -330,9 +340,6 @@ define(["N/record", "N/search"], function (record, search) {
             log.debug({
               title: "result:",
               details: result,
-            });
-            item = result.getValue({
-              name: "item",
             });
 
             lotId = result.getValue({
@@ -345,27 +352,56 @@ define(["N/record", "N/search"], function (record, search) {
               join: "inventoryDetail",
             });
 
+            lnKey_IR = result.getValue({
+              name: "lineuniquekey",
+            });
+
+            itm = result.getValue({
+              name: "item",
+            });
+
+            itemId = result.getValue({
+              name: "internalid",
+              join: "inventoryDetail",
+            });
+
+            /*
+            same item, separate line, with different inv detail lot numbers
+            */
+
             // lotNum = result.getValue({
             //   name: "issueinventorynumber",
             // });
 
             ///////////////// object template:
             // object = {
-            //   item: [
-            //     { lot: lot, quantity: quantity },
-            //     { lot: lot, quantity: quantity },
-            //   ],
-            //   item: [
-            //     { lot: lot, quantity: quantity },
-            //     { lot: lot, quantity: quantity },
-            //   ],
+            //   lnKey: {
+            //     solnKey: solnKey,
+            //     lots: [
+            //       { lot: lot, quantity: quantity },
+            //       { lot: lot, quantity: quantity },
+            //     ],
+            //   },
+            //   lnKey: {
+            //     solnKey: solnKey,
+            //     lots: [
+            //       { lot: lot, quantity: quantity },
+            //       { lot: lot, quantity: quantity },
+            //     ],
+            //   },
             // };
 
             // if no item object exists yet, create one and assign it to an array of {lot: quantity} pairings
-            if (!lotNumberItemGroups[item]) lotNumberItemGroups[item] = [];
+            if (!lotNumberItemGroups[lnKey_IR]) {
+              // lotNumberItemGroups[lnKey_IR] = {
+              //   item: itm,
+              // };
+              lotNumberItemGroups[lnKey_IR] = []; // initialize the array if the lnKey_IR doesn't exist
+              // lotNumberItemGroups[lnKey_IR].push(); // just push the item ONCE upon initializing the array!
+            }
 
             // each pass includes
-            lotNumberItemGroups[item].push({
+            lotNumberItemGroups[lnKey_IR].push({
               lot: lotId,
               quantity: quantity,
             });
@@ -388,10 +424,23 @@ define(["N/record", "N/search"], function (record, search) {
           details: soItemLineCount,
         });
 
-        let i = 0; // the counter for each inventory detail sublist line
+        // keys = array of the lineKeys
+        let keys = Object.keys(lotNumberItemGroups);
+        let soLineKey;
+        let soItem;
+        let itemKeysValues;
+        let i = 0;
+        log.debug({
+          title: "should be the two different keys:",
+          details: keys,
+        });
 
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < soItemLineCount; l++) {
+          log.debug({
+            title: "SO item sublist line:",
+            details: ["SO item line:", l],
+          });
           // Determine if the line item is LOT NUMBERED:
           lotNumberedItem = soRecord.getSublistValue({
             sublistId: "item",
@@ -402,6 +451,49 @@ define(["N/record", "N/search"], function (record, search) {
             title: "lotNumberedItem?:",
             details: lotNumberedItem,
           });
+
+          soItem = soRecord.getSublistValue({
+            sublistId: "item",
+            fieldId: "item",
+            line: l,
+          });
+
+          log.debug({
+            title: "soItem:",
+            details: soItem,
+          });
+
+          // itemKeysValues = Object.values(lotNumberItemGroups[keys[i]]);
+
+          // log.debug({
+          //   title: "itemKeysValues",
+          //   details: itemKeysValues,
+          // });
+
+          // soLineKey = soRecord.getSublistValue({
+          //   sublistId: "item",
+          //   fieldId: "lineuniquekey",
+          //   line: l,
+          // });
+
+          // log.debug({
+          //   title: "soLineKey",
+          //   details: soLineKey,
+          // });
+
+          // currRecord.getSublistValue({
+          //   sublistId: "item",
+          //   fieldId: "item",
+          //   line: l,
+          // });
+
+          /*
+          TO DO:
+
+          create a custom form for the PO, add a cust field to the item sublist that indicates the SO's uniquelinekey
+
+
+          */
 
           if (lotNumberedItem === "T") {
             // only bother GETTING the inv detail subrecord IF the item sublist item is lot numbered:
@@ -417,46 +509,58 @@ define(["N/record", "N/search"], function (record, search) {
             });
 
             log.debug({
-              title: "lotNumberItemGroups[i]",
-              details: lotNumberItemGroups[i],
+              title: "lotNumberItemGroups KEYS:",
+              details: Object.keys(lotNumberItemGroups)[0],
             });
 
-            //
-            // i = inv detail line number
-            lotNumberItemGroups[i].forEach((itm) => {
-              log.debug({
-                title: "SO setting values:",
-                details: [
-                  "item",
-                  itm,
-                  "quantity:",
-                  itm.quantity,
-                  "lot:",
-                  itm.lot,
-                ],
-              });
+            // this reassigns the values array of the item that we are going to loop through
+            itemKeysValues = Object.values(lotNumberItemGroups[keys[i]]);
 
+            log.debug({
+              title: "itemKeysValues",
+              details: [
+                "length:",
+                itemKeysValues.length,
+                "values:",
+                itemKeysValues,
+              ],
+            });
+
+            // loop through the lot numbers of each line key in our Object and set them to the InvDetails inventoryassignment sublist lines
+            for (let n = 0; n < itemKeysValues.length; n++) {
               // SET the quantity on the SO sub:
               invDetail_SO.setSublistValue({
                 sublistId: "inventoryassignment",
                 fieldId: "quantity",
-                line: i,
-                value: itm.quantity,
+                line: n,
+                value: itemKeysValues[n].quantity,
               });
 
               invDetail_SO.setSublistValue({
                 sublistId: "inventoryassignment",
                 fieldId: "issueinventorynumber",
-                line: i,
-                value: itm.lot,
+                line: n,
+                value: itemKeysValues[n].lot,
               });
+
               log.debug({
-                title: "inventory detail:",
-                details: ["lotNum line:", i, invDetail_SO],
+                title: "invDetail_SO values check:",
+                details: [
+                  "ID sublist line:",
+                  n,
+                  "lot:",
+                  itemKeysValues[n].lot,
+                  "quantity:",
+                  itemKeysValues[n].quantity,
+                  invDetail_SO,
+                ],
               });
-            });
-            // AFTER the forEach loop is complete we go back to the line loop above
+            }
             i++;
+            /*
+            AFTER a successful loop is complete we go back to the line loop at the top of the block
+            We iterate our i counter to move on to the NEXT element in our constructed object
+            */
           } else {
             log.debug({
               title: "skipped line #",
