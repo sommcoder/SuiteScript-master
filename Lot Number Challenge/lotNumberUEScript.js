@@ -82,7 +82,7 @@ define(["N/record", "N/search"], function (record, search) {
           "location",
         ];
 
-        // loop shared BODY FIELDS:
+        // BODY FIELDS:
         for (let i = 0; i < sharedFields.length; i++) {
           const gotValue = currRecord.getValue({
             fieldId: sharedFields[i],
@@ -111,31 +111,18 @@ define(["N/record", "N/search"], function (record, search) {
           sublistId: "item",
         });
 
-        // log.debug({
-        //   title: "numLines",
-        //   details: numLines,
-        // });
-
         const skippedIndices_IR = [];
         let invDetail_IR;
         let lotNumberedItem;
+        let lineKeyNumber;
+
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
-          // log.debug({
-          //   title: "line index:",
-          //   details: ["INDEX", l, "OF", numLines - 1, "INDICES"],
-          // });
-
           lotNumberedItem = currRecord.getSublistValue({
             sublistId: "item",
             fieldId: "isnumbered",
             line: l,
           });
-
-          // log.debug({
-          //   title: "lotNumberedItem",
-          //   details: lotNumberedItem,
-          // });
 
           if (lotNumberedItem === "T") {
             invDetail_IR = currRecord.getSublistSubrecord({
@@ -148,14 +135,34 @@ define(["N/record", "N/search"], function (record, search) {
               title: "invDetail_IR",
               details: invDetail_IR,
             });
-            // log.debug({
-            //   title: "l: get from index:",
-            //   details: l,
-            // });
-            // log.debug({
-            //   title: "ternary exp: get on index:",
-            //   details: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
-            // });
+
+            lineKeyNumber = currRecord.getSublistValue({
+              sublistId: "item",
+              fieldId: "lineuniquekey",
+              line: l,
+            });
+
+            log.debug({
+              title: "lineKeyNumber:",
+              details: lineKeyNumber,
+            });
+
+            poRecord.setSublistValue({
+              sublistId: "item",
+              fieldId: "custcol18",
+              line: l,
+              value: lineKeyNumber,
+            });
+
+            /*
+
+    skippedIndices_IR[0] ? skippedIndices_IR[0] : l   
+
+    explanation:
+    if there is a value in the array, give that value, if not, just give the index value of l
+
+         */
+
             for (let i = 0; i < sharedSublistFieldsArr.length; i++) {
               let soSublistValue =
                 currRecord.getSublistValue({
@@ -306,7 +313,7 @@ define(["N/record", "N/search"], function (record, search) {
 
         // item grouping variables:
         const lotNumberItemGroups = {};
-        let lnKey, lotId, quantity;
+        let lnKey_SO, lotId, quantity, lotLocation;
 
         search
           .create({
@@ -326,13 +333,8 @@ define(["N/record", "N/search"], function (record, search) {
                 name: "quantity",
                 join: "inventoryDetail",
               }),
-              search.createColumn({
-                name: "internalid",
-                join: "inventoryDetail",
-              }),
-              "number",
-              "lineuniquekey",
-              "item",
+              "custcol18",
+              "locationnohierarchy",
             ],
           })
           .run()
@@ -352,56 +354,31 @@ define(["N/record", "N/search"], function (record, search) {
               join: "inventoryDetail",
             });
 
-            lnKey_IR = result.getValue({
-              name: "lineuniquekey",
+            lnKey_SO = result.getValue({
+              name: "custcol18",
             });
 
-            itm = result.getValue({
-              name: "item",
+            itemLocation = result.getValue({
+              name: "locationnohierarchy",
             });
 
-            itemId = result.getValue({
-              name: "internalid",
-              join: "inventoryDetail",
+            // if no item object exists yet, create one and assign it to an object that contains the location and lots properties, location is a number and lots is an empty array that will be filled
+            if (!lotNumberItemGroups[lnKey_SO])
+              lotNumberItemGroups[lnKey_SO] = {
+                location: itemLocation,
+                lots: [],
+              };
+
+            // if (!lotNumberItemGroups[lnKey_SO].location) {
+            //   lotNumberItemGroups[lnKey_SO].location = lotLocation;
+            // }
+
+            log.debug({
+              title: "lotNumberItemGroups",
+              details: lotNumberItemGroups,
             });
 
-            /*
-            same item, separate line, with different inv detail lot numbers
-            */
-
-            // lotNum = result.getValue({
-            //   name: "issueinventorynumber",
-            // });
-
-            ///////////////// object template:
-            // object = {
-            //   lnKey: {
-            //     solnKey: solnKey,
-            //     lots: [
-            //       { lot: lot, quantity: quantity },
-            //       { lot: lot, quantity: quantity },
-            //     ],
-            //   },
-            //   lnKey: {
-            //     solnKey: solnKey,
-            //     lots: [
-            //       { lot: lot, quantity: quantity },
-            //       { lot: lot, quantity: quantity },
-            //     ],
-            //   },
-            // };
-
-            // if no item object exists yet, create one and assign it to an array of {lot: quantity} pairings
-            if (!lotNumberItemGroups[lnKey_IR]) {
-              // lotNumberItemGroups[lnKey_IR] = {
-              //   item: itm,
-              // };
-              lotNumberItemGroups[lnKey_IR] = []; // initialize the array if the lnKey_IR doesn't exist
-              // lotNumberItemGroups[lnKey_IR].push(); // just push the item ONCE upon initializing the array!
-            }
-
-            // each pass includes
-            lotNumberItemGroups[lnKey_IR].push({
+            lotNumberItemGroups[lnKey_SO].lots.push({
               lot: lotId,
               quantity: quantity,
             });
@@ -427,11 +404,13 @@ define(["N/record", "N/search"], function (record, search) {
         // keys = array of the lineKeys
         let keys = Object.keys(lotNumberItemGroups);
         let soLineKey;
-        let soItem;
         let itemKeysValues;
-        let i = 0;
+        let irLocation;
+        let soLocation = soRecord.getValue({
+          fieldId: "location",
+        });
         log.debug({
-          title: "should be the two different keys:",
+          title: "keys array:",
           details: keys,
         });
 
@@ -452,50 +431,57 @@ define(["N/record", "N/search"], function (record, search) {
             details: lotNumberedItem,
           });
 
-          soItem = soRecord.getSublistValue({
+          soLineKey = soRecord.getSublistValue({
             sublistId: "item",
-            fieldId: "item",
+            fieldId: "lineuniquekey",
             line: l,
           });
 
           log.debug({
-            title: "soItem:",
-            details: soItem,
+            title: "soLineKey:",
+            details: soLineKey,
           });
 
-          // itemKeysValues = Object.values(lotNumberItemGroups[keys[i]]);
+          if (lotNumberedItem === "T" && keys.includes(soLineKey)) {
+            // if the previous conditions are valid we're good to do the following procedures and check for ir location to match the so location
+            // this reassigns the values array of the item that we are going to loop through
+            itemKeysValues = Object.values(
+              lotNumberItemGroups[soLineKey]
+            ).flat();
 
-          // log.debug({
-          //   title: "itemKeysValues",
-          //   details: itemKeysValues,
-          // });
+            // splice out the location value which mutates the original array to
+            irLocation = itemKeysValues.splice(0, 1);
 
-          // soLineKey = soRecord.getSublistValue({
-          //   sublistId: "item",
-          //   fieldId: "lineuniquekey",
-          //   line: l,
-          // });
+            log.debug({
+              title: "irLocation",
+              details: irLocation,
+            });
 
-          // log.debug({
-          //   title: "soLineKey",
-          //   details: soLineKey,
-          // });
+            log.debug({
+              title: "itemKeysValues LENGTH:",
+              details: itemKeysValues.length,
+            });
 
-          // currRecord.getSublistValue({
-          //   sublistId: "item",
-          //   fieldId: "item",
-          //   line: l,
-          // });
+            log.debug({
+              title: "itemKeysValues:",
+              details: itemKeysValues,
+            });
 
-          /*
-          TO DO:
+            log.debug({
+              title: "soLocation",
+              details: soLocation,
+            });
 
-          create a custom form for the PO, add a cust field to the item sublist that indicates the SO's uniquelinekey
+            // if the irLocation of the item DOESN'T match the soLocation, continue to the next iteration!
+            // the value of irLocation gets type-coerced before their equality is checked
+            if (irLocation != soLocation) {
+              log.debug({
+                title: "Not the same location!",
+                details: [irLocation, "/", soLocation],
+              });
+              continue;
+            }
 
-
-          */
-
-          if (lotNumberedItem === "T") {
             // only bother GETTING the inv detail subrecord IF the item sublist item is lot numbered:
             invDetail_SO = soRecord.getSublistSubrecord({
               sublistId: "item",
@@ -504,30 +490,33 @@ define(["N/record", "N/search"], function (record, search) {
             });
 
             log.debug({
-              title: "invDetail_SO: got the invDetail?:",
-              details: ["item sublist line:", l, "record:", invDetail_SO],
-            });
-
-            log.debug({
-              title: "lotNumberItemGroups KEYS:",
-              details: Object.keys(lotNumberItemGroups)[0],
-            });
-
-            // this reassigns the values array of the item that we are going to loop through
-            itemKeysValues = Object.values(lotNumberItemGroups[keys[i]]);
-
-            log.debug({
-              title: "itemKeysValues",
+              title: "invDetail_SO:",
               details: [
-                "length:",
-                itemKeysValues.length,
-                "values:",
-                itemKeysValues,
+                "item sublist line:",
+                l,
+                "record:",
+                invDetail_SO,
+                "soLineKey:",
+                soLineKey,
               ],
             });
 
+            // if (itemKeysValues[n].location !== soLocation) continue;
+
             // loop through the lot numbers of each line key in our Object and set them to the InvDetails inventoryassignment sublist lines
             for (let n = 0; n < itemKeysValues.length; n++) {
+              log.debug({
+                title: "itemKeysValues in the n loop:",
+                details: [
+                  itemKeysValues[n],
+                  "/",
+                  itemKeysValues[n].lot,
+                  "/",
+                  itemKeysValues[n].quantity,
+                ],
+              });
+              // if the location of the lot is NOT the location of the SO iterate the counter!
+
               // SET the quantity on the SO sub:
               invDetail_SO.setSublistValue({
                 sublistId: "inventoryassignment",
@@ -556,7 +545,6 @@ define(["N/record", "N/search"], function (record, search) {
                 ],
               });
             }
-            i++;
             /*
             AFTER a successful loop is complete we go back to the line loop at the top of the block
             We iterate our i counter to move on to the NEXT element in our constructed object
@@ -564,7 +552,7 @@ define(["N/record", "N/search"], function (record, search) {
           } else {
             log.debug({
               title: "skipped line #",
-              details: ["skipped line:", l],
+              details: ["skipped line:", l, "skipped so lineKey:", soLineKey],
             });
           }
         }
