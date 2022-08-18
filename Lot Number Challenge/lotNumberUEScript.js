@@ -59,46 +59,30 @@ define(["N/record", "N/search"], function (record, search) {
           details: currRecordId,
         });
 
-        const poRecord = record.create({
-          type: "purchaseorder",
-        });
+        // Preliminary check to see if lot numbered items even exist
+        let lotNumbers = [];
 
-        log.debug({
-          title: "poRecord BEFORE loop:",
-          details: poRecord,
-        });
-
-        // ITEMs must be LOT NUMBERED
-        // hard-code a VENDER on the Purchase Order
-
-        const sharedFields = [
-          "tranid",
-          "trandate",
-          "entity",
-          "memo",
-          "subsidiary",
-          "department",
-          "class",
-          "location",
-        ];
-
-        // BODY FIELDS:
-        for (let i = 0; i < sharedFields.length; i++) {
-          const gotValue = currRecord.getValue({
-            fieldId: sharedFields[i],
+        for (let l = 0; l < numLines; l++) {
+          lotNumberedItem = currRecord.getSublistValue({
+            sublistId: "item",
+            fieldId: "isnumbered",
+            line: l,
           });
-          poRecord.setValue({
-            fieldId: sharedFields[i],
-            value: gotValue,
-          });
+          lotNumberedItem === "T" ? lotNumbers.push("T") : lotNumbers.push("F");
         }
 
-        // unique PO fields:
-        poRecord.setValue({
-          fieldId: "entity", // entity = Vendor in a PO
-          value: 1840, // Adam Smith CPA hard-coded Vendor
+        let lotNumberedItemsCheck = lotNumbers.some((el) => {
+          el === "T";
         });
 
+        let poRecord; // we want the poRecord to be available globally
+        // the poRecord is created only IF there is at least ONE lot numbered item within the SO item sublist
+        if (lotNumberedItemsCheck) {
+          poRecord = record.create({
+            type: "purchaseorder",
+          });
+        }
+        /////////////////////////////////////
         const sharedSublistFieldsArr = [
           "item",
           "quantity",
@@ -111,10 +95,12 @@ define(["N/record", "N/search"], function (record, search) {
           sublistId: "item",
         });
 
-        const skippedIndices_IR = [];
+        const skippedIndices_SO = [];
         let invDetail_IR;
         let lotNumberedItem;
         let lineKeyNumber;
+
+        // ITEMs must be LOT NUMBERED
 
         // ITEM SUBLIST LINE LOOP:
         for (let l = 0; l < numLines; l++) {
@@ -156,7 +142,7 @@ define(["N/record", "N/search"], function (record, search) {
 
             /*
 
-    skippedIndices_IR[0] ? skippedIndices_IR[0] : l   
+    skippedIndices_SO[0] ? skippedIndices_SO[0] : l   
 
     explanation:
     if there is a value in the array, give that value, if not, just give the index value of l
@@ -179,7 +165,7 @@ define(["N/record", "N/search"], function (record, search) {
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: sharedSublistFieldsArr[i],
-                line: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
+                line: skippedIndices_SO[0] ? skippedIndices_SO[0] : l,
                 value: soSublistValue,
               });
 
@@ -191,12 +177,12 @@ define(["N/record", "N/search"], function (record, search) {
               poRecord.setSublistValue({
                 sublistId: "item",
                 fieldId: "customer",
-                line: skippedIndices_IR[0] ? skippedIndices_IR[0] : l,
+                line: skippedIndices_SO[0] ? skippedIndices_SO[0] : l,
                 value: customer,
               });
             }
             // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure needs to be a QUEUE than a STACK (FIFO):
-            skippedIndices_IR.shift(0);
+            skippedIndices_SO.shift(0);
             // check to ensure that the sublist is actually being set properly:
             log.debug({
               title: "item sublist POST loop:",
@@ -207,15 +193,43 @@ define(["N/record", "N/search"], function (record, search) {
               }),
             });
           }
-          // if the lot numbered item is 'F', add the index number to the skippedIndices_IR array
+          // if the lot numbered item is 'F', add the index number to the skippedIndices_SO array
           else {
             log.debug({
               title: "Skipped Index:",
               details: l,
             });
-            skippedIndices_IR.push(l);
+            skippedIndices_SO.push(l);
           }
         }
+
+        const sharedFields = [
+          "tranid",
+          "trandate",
+          "entity",
+          "memo",
+          "subsidiary",
+          "department",
+          "class",
+          "location",
+        ];
+
+        // BODY FIELDS:
+        for (let i = 0; i < sharedFields.length; i++) {
+          const gotValue = currRecord.getValue({
+            fieldId: sharedFields[i],
+          });
+          poRecord.setValue({
+            fieldId: sharedFields[i],
+            value: gotValue,
+          });
+        }
+
+        // unique PO fields:
+        poRecord.setValue({
+          fieldId: "entity", // entity = Vendor in a PO
+          value: 1840, // Adam Smith CPA hard-coded Vendor
+        });
 
         // set the CustomForm on the PO record BEFORE saving it
         poRecord.setValue({
@@ -295,10 +309,6 @@ define(["N/record", "N/search"], function (record, search) {
         const soRecord = record.load({
           type: "salesorder",
           id: soRecordId.custbody14[0].value,
-        });
-
-        soRecord.getValue({
-          fieldId: "cust",
         });
 
         // this is assuming the # of lines on the PO is the same on the SO, which it SHOULD be since the SO creates the PO:
