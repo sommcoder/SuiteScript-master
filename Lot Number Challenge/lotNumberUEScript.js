@@ -59,7 +59,6 @@ define(["N/record", "N/search"], function (record, search) {
         setLots();
       }
 
-      // declarations get hoisted to the top of the block
       // function declaration 1:
       function createPO() {
         let poRecord;
@@ -125,7 +124,7 @@ define(["N/record", "N/search"], function (record, search) {
                 value: customer,
               });
             }
-            // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure needs to be a QUEUE than a STACK (FIFO):
+            // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure is a QUEUE-style (FIFO):
             skippedIndices_SO.shift(0);
             // check to ensure that the sublist is actually being set properly:
             log.debug({
@@ -146,6 +145,9 @@ define(["N/record", "N/search"], function (record, search) {
             skippedIndices_SO.push(l);
           }
         }
+        // if there was no poRecord created in the above code: end the current function!
+        /////////////////////////////////////////////////////////////////////
+        if (!poRecord) return;
         /////////////////////////////////////////////////////////////////////
         // BODY FIELDS: get and set
         const sharedBodyFieldsArr = [
@@ -163,6 +165,7 @@ define(["N/record", "N/search"], function (record, search) {
           bodyFieldValue = currRecord.getValue({
             fieldId: sharedBodyFieldsArr[i],
           });
+
           poRecord.setValue({
             fieldId: sharedBodyFieldsArr[i],
             value: bodyFieldValue,
@@ -186,7 +189,6 @@ define(["N/record", "N/search"], function (record, search) {
         });
         /////////////////////////////////////////////////////////////////////////////////
         const poRecordId = poRecord.save();
-
         // submit the linked SO Field separately
         record.submitFields({
           type: "salesorder",
@@ -325,7 +327,8 @@ define(["N/record", "N/search"], function (record, search) {
             // this reassigns the values array of the item that we are going to loop through
             itemKeysValues = Object.values(lotNumberItemObj[soLineKey]).flat();
 
-            // splice out the location value which mutates the original array to
+            // splice out the location value which mutates the original array and gets us our desired value.
+            // we construct the data we're splicing so we can gaurantee it's structure.
             irLocation = itemKeysValues.splice(0, 1);
 
             // if the irLocation of the item DOESN'T match the soLocation, continue to the next iteration!
@@ -346,7 +349,6 @@ define(["N/record", "N/search"], function (record, search) {
             });
 
             // if (itemKeysValues[n].location !== soLocation) continue;
-
             // loop through the lot numbers of each line key in our Object and set them to the InvDetails inventoryassignment sublist lines
             for (let n = 0; n < itemKeysValues.length; n++) {
               log.debug({
