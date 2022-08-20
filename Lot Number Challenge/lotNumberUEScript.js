@@ -189,10 +189,6 @@ define(["N/record", "N/search"], function (record, search) {
 
       //---------------- Item Receipt Conditional Block: ---------------------------------//
       if (currRecordType === "itemreceipt") {
-        log.debug({
-          title: "poRecord",
-          details: poRecord,
-        });
         var soRecord;
         var lotNumberItemObj = {};
         constructLotObj();
