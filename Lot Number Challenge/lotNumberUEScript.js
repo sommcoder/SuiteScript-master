@@ -18,20 +18,14 @@ Think Amazon for products they don't MAKE themselves. They purchase it from the 
 
 
 --------- Summary: --------------
-1) On save, create new Purchase order
-2) auto-populate the items and quantities from sales order into the PO
-   the items on the SO MUST be LOT NUMBERED.
-3) have the PO and SO linked through a field (two way link)... the PO field?
-4) On receipt of the PO, add the LOTs received onto the INVENTORY DETAIL of the SALES ORDERs
+2 functions:
+createPO()
+setLots()
 
+** createPO() is triggered on creation of a new sales order record. NO PO will be created if there isn't at least ONE lot numbered item in the item sublist.
 
------------ Use Cases: ----------
+** setLots() is triggered on save of the Item Receipt record. User must select Lot Number Linked Item Receipt
 
-1) user doesn't choose the lot number custom form
-2) SO with no lot numbered items
-3) PO location gets changes
-4) PO item gets deleted
-5) SO line gets deleted
 
 */
 
@@ -49,25 +43,19 @@ define(["N/record", "N/search"], function (record, search) {
       // global variable:
       let lotNumberedItem;
 
-      //--------------- Sales Orders Block ------------------------------//
+      //--------------- Sales Orders Conditional Block: ------------------------------//
       if (currRecordType === "salesorder" && contextType === "create") {
-        createPO();
+        var poRecord;
+        createPO_setItemSublist();
+        if (!poRecord) return; // if the items aren't lot numbered, no linked-PO is auto-created
+        setBodyFields_PO();
+        savePO();
       }
 
-      //---------------- Item Receipt Block---------------------------------//
-      if (currRecordType === "itemreceipt") {
-        setLots();
-      }
-
-      // function declaration 1:
-      function createPO() {
-        let poRecord;
+      // Sales Order Functions:
+      function createPO_setItemSublist() {
         let soSublistValue;
         let customer;
-        let bodyFieldValue;
-
-        /////////////////////////////////////////////////////////////////////
-
         const skippedIndices_SO = [];
         const numLines = currRecord.getLineCount({
           sublistId: "item",
@@ -145,10 +133,9 @@ define(["N/record", "N/search"], function (record, search) {
             skippedIndices_SO.push(l);
           }
         }
-        // if there was no poRecord created in the above code: end the current function!
-        /////////////////////////////////////////////////////////////////////
-        if (!poRecord) return;
-        /////////////////////////////////////////////////////////////////////
+      }
+      function setBodyFields_PO() {
+        let bodyFieldValue;
         // BODY FIELDS: get and set
         const sharedBodyFieldsArr = [
           "tranid",
@@ -187,7 +174,8 @@ define(["N/record", "N/search"], function (record, search) {
           fieldId: "custbody14",
           value: currRecordId,
         });
-        /////////////////////////////////////////////////////////////////////////////////
+      }
+      function savePO() {
         const poRecordId = poRecord.save();
         // submit the linked SO Field separately
         record.submitFields({
@@ -199,8 +187,16 @@ define(["N/record", "N/search"], function (record, search) {
         });
       }
 
-      // function declaration 2:
-      function setLots() {
+      //---------------- Item Receipt Conditional Block: ---------------------------------//
+      if (currRecordType === "itemreceipt") {
+        var soRecord;
+        var lotNumberItemObj = {};
+        constructLotObj();
+        setLots();
+        soRecord.save();
+      }
+      // Item Receipt Functions:
+      function constructLotObj() {
         const soRecordId = search.lookupFields({
           type: "purchaseorder",
           id: currRecord.getValue({
@@ -209,16 +205,12 @@ define(["N/record", "N/search"], function (record, search) {
           columns: "custbody14",
         });
 
-        const soRecord = record.load({
+        soRecord = record.load({
           type: "salesorder",
           id: soRecordId.custbody14[0].value,
         });
 
-        // search global variables:
-        let invDetail_SO;
-
         // Object variables:
-        const lotNumberItemObj = {};
         let lnKey_SO, lotId, quantity, itemLocation;
 
         search
@@ -250,6 +242,7 @@ define(["N/record", "N/search"], function (record, search) {
               details: result,
             });
 
+            // get the values:
             lotId = result.getValue({
               name: "inventorynumber",
               join: "inventoryDetail",
@@ -282,20 +275,18 @@ define(["N/record", "N/search"], function (record, search) {
 
             return true;
           });
-
-        /////////////////////////////////////////////////////////////////
-        // GET the line count of the SO item sublist:
-        let soItemLineCount = soRecord.getLineCount({
-          sublistId: "item",
-        });
-
-        // keys = array of the lineKeys
-        let keys = Object.keys(lotNumberItemObj);
+      }
+      function setLots() {
+        let invDetail_SO;
         let soLineKey;
         let itemKeysValues;
         let irLocation;
+        let keys = Object.keys(lotNumberItemObj);
         let soLocation = soRecord.getValue({
           fieldId: "location",
+        });
+        let soItemLineCount = soRecord.getLineCount({
+          sublistId: "item",
         });
         log.debug({
           title: "keys array:",
@@ -323,13 +314,17 @@ define(["N/record", "N/search"], function (record, search) {
           });
 
           if (lotNumberedItem === "T" && keys.includes(soLineKey)) {
-            // if the previous conditions are valid we're good to do the following procedures and check for ir location to match the so location
-            // this reassigns the values array of the item that we are going to loop through
+            // this reassigns the variable to the array of the values depending on the key
             itemKeysValues = Object.values(lotNumberItemObj[soLineKey]).flat();
 
             // splice out the location value which mutates the original array and gets us our desired value.
-            // we construct the data we're splicing so we can gaurantee it's structure.
-            irLocation = itemKeysValues.splice(0, 1);
+            // we construct the data we're splicing so we can gaurantee the consistency of its structure.
+            irLocation = itemKeysValues.splice(0, 1).toString();
+
+            log.debug({
+              title: "irLocation check?",
+              details: [irLocation, soLocation],
+            });
 
             // if the irLocation of the item DOESN'T match the soLocation, continue to the next iteration!
             // the value of irLocation gets type-coerced before their equality is checked
@@ -341,29 +336,14 @@ define(["N/record", "N/search"], function (record, search) {
               continue;
             }
 
-            // only bother GETTING the inv detail subrecord IF the item sublist item is lot numbered:
             invDetail_SO = soRecord.getSublistSubrecord({
               sublistId: "item",
               fieldId: "inventorydetail",
               line: l,
             });
 
-            // if (itemKeysValues[n].location !== soLocation) continue;
             // loop through the lot numbers of each line key in our Object and set them to the InvDetails inventoryassignment sublist lines
             for (let n = 0; n < itemKeysValues.length; n++) {
-              log.debug({
-                title: "itemKeysValues in the n loop:",
-                details: [
-                  itemKeysValues[n],
-                  "/",
-                  itemKeysValues[n].lot,
-                  "/",
-                  itemKeysValues[n].quantity,
-                ],
-              });
-              // if the location of the lot is NOT the location of the SO iterate the counter!
-
-              // SET the quantity on the SO sub:
               invDetail_SO.setSublistValue({
                 sublistId: "inventoryassignment",
                 fieldId: "quantity",
@@ -377,28 +357,9 @@ define(["N/record", "N/search"], function (record, search) {
                 line: n,
                 value: itemKeysValues[n].lot,
               });
-
-              log.debug({
-                title: "invDetail_SO values check:",
-                details: [
-                  "ID sublist line:",
-                  n,
-                  "lot:",
-                  itemKeysValues[n].lot,
-                  "quantity:",
-                  itemKeysValues[n].quantity,
-                  invDetail_SO,
-                ],
-              });
             }
-          } else {
-            log.debug({
-              title: "skipped line #",
-              details: ["skipped line:", l, "skipped so lineKey:", soLineKey],
-            });
           }
         }
-        soRecord.save();
       }
     } catch (err) {
       log.debug({
