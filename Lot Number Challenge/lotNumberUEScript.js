@@ -103,12 +103,17 @@ define(["N/record", "N/search"], function (record, search) {
             line: skippedIndices_SO[0] ? skippedIndices_SO[0] : l,
             value: customer,
           });
+
+          // log.debug({
+          //   title: "item sublist POST loop:",
+          //   details: sharedSublistFieldsArr[i],
+          // });
         }
         // after setting the current skipped index, remove that index from the array and loop over the process again. The data structure is a QUEUE-style (FIFO):
-        skippedIndices_SO.shift(0);
+        if (skippedIndices_SO[0]) skippedIndices_SO.shift(0);
         // check to ensure that the sublist is actually being set properly:
         log.debug({
-          title: "item sublist POST loop:",
+          title: "poRecord item sublist AFTER each loop:",
           details: poRecord.getSublistValue({
             sublistId: "item",
             fieldId: "item",
@@ -144,6 +149,10 @@ define(["N/record", "N/search"], function (record, search) {
       bodyFieldValue = currRecord.getValue({
         fieldId: sharedBodyFieldsArr[i],
       });
+      log.debug({
+        title: "body field values:",
+        details: [sharedBodyFieldsArr[i], ":", bodyFieldValue],
+      });
 
       poRecord.setValue({
         fieldId: sharedBodyFieldsArr[i],
@@ -159,7 +168,7 @@ define(["N/record", "N/search"], function (record, search) {
     // set the CustomForm on the PO record BEFORE saving it
     poRecord.setValue({
       fieldId: "customform",
-      value: "341", // hard coded so that we can set the value of "custbody14" below
+      value: "341", // hard coded the custom form so that we're able to set the value of the custbody14 field
     });
     // set the custom field on the PO to be the link to the SO
     poRecord.setValue({
@@ -168,6 +177,10 @@ define(["N/record", "N/search"], function (record, search) {
     });
   }
   function savePO() {
+    log.debug({
+      title: "poRecord",
+      details: poRecord,
+    });
     const poRecordId = poRecord.save();
     // submit the linked SO Field separately
     record.submitFields({
@@ -355,7 +368,7 @@ define(["N/record", "N/search"], function (record, search) {
       // global variable:
 
       //--------------- Sales Orders Conditional Block: ------------------------------//
-      if (currRecordType === "salesorder" && contextType === "create") {
+      if (currRecordType === "salesorder" && contextType === "edit") {
         createPO_setItemSublist();
         if (!poRecord) return; // if the items aren't lot numbered, no linked-PO is auto-created
         setBodyFields_PO();
@@ -370,7 +383,7 @@ define(["N/record", "N/search"], function (record, search) {
       }
     } catch (err) {
       log.debug({
-        title: "error:",
+        title: "AF try/catch error:",
         details: err,
       });
     }
