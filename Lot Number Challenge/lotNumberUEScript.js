@@ -44,6 +44,36 @@ define(["N/record", "N/search"], function (record, search) {
   let lotNumberedItem;
   let lotNumberItemObj = {};
 
+  function afterSubmit(context) {
+    try {
+      currRecord = context.newRecord;
+      currRecordId = currRecord.id;
+      currRecordType = currRecord.type;
+      contextType = context.type;
+      // global variable:
+
+      //--------------- Sales Orders Conditional Block: ------------------------------//
+      if (currRecordType === "salesorder" && contextType === "edit") {
+        createPO_setItemSublist();
+        if (!poRecord) return; // if the items aren't lot numbered, no linked-PO is auto-created
+        setBodyFields_PO();
+        savePO();
+      }
+
+      //---------------- Item Receipt Conditional Block: ---------------------------------//
+      if (currRecordType === "itemreceipt") {
+        constructLotObj();
+        setLots();
+        soRecord.save();
+      }
+    } catch (err) {
+      log.debug({
+        title: "AF try/catch error:",
+        details: err,
+      });
+    }
+  }
+
   // Sales Order Functions:
   function createPO_setItemSublist() {
     let soSublistValue;
@@ -207,6 +237,13 @@ define(["N/record", "N/search"], function (record, search) {
       id: soRecordId.custbody14[0].value,
     });
 
+    if (!soRecord) {
+      return log.debug({
+        title: "no SO Error!",
+        details: "No SO loaded in ConstructLotObj()",
+      });
+    }
+
     // Object variables:
     let lnKey_SO, lotId, quantity, itemLocation;
 
@@ -359,35 +396,6 @@ define(["N/record", "N/search"], function (record, search) {
     }
   }
 
-  function afterSubmit(context) {
-    try {
-      currRecord = context.newRecord;
-      currRecordId = currRecord.id;
-      currRecordType = currRecord.type;
-      contextType = context.type;
-      // global variable:
-
-      //--------------- Sales Orders Conditional Block: ------------------------------//
-      if (currRecordType === "salesorder" && contextType === "edit") {
-        createPO_setItemSublist();
-        if (!poRecord) return; // if the items aren't lot numbered, no linked-PO is auto-created
-        setBodyFields_PO();
-        savePO();
-      }
-
-      //---------------- Item Receipt Conditional Block: ---------------------------------//
-      if (currRecordType === "itemreceipt") {
-        constructLotObj();
-        setLots();
-        soRecord.save();
-      }
-    } catch (err) {
-      log.debug({
-        title: "AF try/catch error:",
-        details: err,
-      });
-    }
-  }
   return {
     afterSubmit: afterSubmit,
   };
