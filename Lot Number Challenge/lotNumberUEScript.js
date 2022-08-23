@@ -232,17 +232,18 @@ define(["N/record", "N/search"], function (record, search) {
       columns: "custbody14",
     });
 
+    if (!soRecordId) {
+      return log.debug({
+        title: "no SO Error!",
+        details:
+          "No SO loaded in ConstructLotObj(). IR was not created using the custom form: 'Lot Number Linked Form'",
+      });
+    }
+
     soRecord = record.load({
       type: "salesorder",
       id: soRecordId.custbody14[0].value,
     });
-
-    if (!soRecord) {
-      return log.debug({
-        title: "no SO Error!",
-        details: "No SO loaded in ConstructLotObj()",
-      });
-    }
 
     // Object variables:
     let lnKey_SO, lotId, quantity, itemLocation;
