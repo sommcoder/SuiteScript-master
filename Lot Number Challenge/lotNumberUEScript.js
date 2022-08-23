@@ -226,9 +226,10 @@ define(["N/record", "N/search"], function (record, search) {
   function constructLotObj() {
     const soRecordId = search.lookupFields({
       type: "purchaseorder",
-      id: currRecord.getValue({
-        fieldId: "createdfrom",
-      }),
+      id:
+        currRecord.getValue({
+          fieldId: "createdfrom",
+        }) || null,
       columns: "custbody14",
     });
 
