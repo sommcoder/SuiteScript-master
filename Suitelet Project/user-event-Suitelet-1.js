@@ -2,7 +2,7 @@
  *@NApiVersion 2.1
  *@NScriptType UserEventScript
  */
-define(["N/runtime", "N/url"], function (runtime, url) {
+define(["N/url"], function (url) {
   function beforeLoad(context) {
     try {
       const currForm = context.form;
