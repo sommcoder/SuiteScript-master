@@ -94,16 +94,30 @@ define(["N/url"], function (url) {
         sublistId: "item",
       });
 
+      // obj design:
+      // object = [
+      //   { lineKey: itemId },
+      //   { lineKey: itemId },
+      //   { lineKey: itemId },
+      // ];
+
       const sublistValuesArr = [];
 
       for (let i = 0; i < lnCount; i++) {
-        sublistValuesArr.push(
-          currRecord.getSublistValue({
-            sublistId: "item",
-            fieldId: "item",
-            line: i,
-          })
-        );
+        let lineKey = currRecord.getSublistValue({
+          sublistId: "item",
+          fieldId: "lineuniquekey",
+          line: i,
+        });
+        let itemId = currRecord.getSublistValue({
+          sublistId: "item",
+          fieldId: "item",
+          line: i,
+        });
+        // push the itemId value to the lineKey, this will allow for like-items on separate lines
+        sublistValuesArr.push({
+          [lineKey]: itemId,
+        });
       }
 
       log.debug({

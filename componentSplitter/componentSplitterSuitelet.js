@@ -2,7 +2,11 @@
  *@NApiVersion 2.1
  *@NScriptType Suitelet
  */
-define(["N/ui/serverWidget", "N/search"], function (ui, search) {
+define(["N/ui/serverWidget", "N/search", "N/record"], function (
+  ui,
+  search,
+  record
+) {
   function onRequest(context) {
     try {
       if (context.request.method == "GET") {
@@ -22,6 +26,11 @@ define(["N/ui/serverWidget", "N/search"], function (ui, search) {
         const currRecordId = reqParams.currRecordId;
         const currRecordType = reqParams.currRecordType;
         const tranId = reqParams.tranId;
+
+        log.debug({
+          title: "sublistItems:",
+          details: sublistItems,
+        });
 
         if (currRecordType !== "salesorder") return;
 
@@ -55,6 +64,13 @@ define(["N/ui/serverWidget", "N/search"], function (ui, search) {
           displayType: "entry",
         });
 
+        totalField.updateDisplaySize({
+          height: 60,
+          width: 15,
+        });
+
+        totalField.isMandatory = true;
+
         qtyDistForm.addSubmitButton({
           label: "Submit",
         });
@@ -70,6 +86,17 @@ define(["N/ui/serverWidget", "N/search"], function (ui, search) {
           id: "custpage_item_name_field",
           label: "Name",
           type: "text",
+        });
+
+        const lineKeyField = itemSublist.addField({
+          id: "custpage_line_key_field",
+          label: "Line Key",
+          type: "text",
+        });
+
+        // hidden unique line key field:
+        lineKeyField.updateDisplayType({
+          displayType: "hidden",
         });
 
         //   nameField.updateDisplaySize({
@@ -98,16 +125,41 @@ define(["N/ui/serverWidget", "N/search"], function (ui, search) {
           displayType: "entry",
         });
 
+        itemTotalsField.isMandatory = true;
+
         // itemTotalsField.updateDisplayType({
         //   displayType: "disabled",
         // });
 
+        let itemIds = [];
+        for (let i = 0; i < sublistItems.length; i++) {
+          let key = Object.keys(sublistItems[i]);
+
+          log.debug({
+            title: "key",
+            details: key,
+          });
+          // used to search for the item internal ids:
+          itemIds.push(sublistItems[i][key]);
+
+          // sets the hidden uniquelinekeyfield:
+          itemSublist.setSublistValue({
+            id: "custpage_line_key_field",
+            line: i,
+            value: key,
+          });
+        }
+
+        log.debug({
+          title: "itemIds",
+          details: itemIds,
+        });
         // create a search to lookup the Item Record: qty distribution values:
         let i = 0;
         search
           .create({
             type: "item",
-            filters: [["internalid", "anyof", "1702", "1703", "1707"]],
+            filters: [["internalid", "anyof", itemIds]],
             columns: ["custitem7", "displayname"],
           })
           .run()
@@ -147,11 +199,32 @@ define(["N/ui/serverWidget", "N/search"], function (ui, search) {
           pageObject: qtyDistForm,
         });
       } else {
+        // save the record with information on the suitelet form
         log.debug({
           title: "POST request:",
           details: context,
         });
         // POST (once we click the SubmitBtn)
+        const req = context.request;
+        const lnCount = req.getLineCount({
+          group: "custpage_qty_dist_form_item_sublist",
+        });
+        let sublistValues = [];
+
+        for (let i = 0; i < lnCount; i++) {
+          sublistValues.push(
+            req.getSublistValue({
+              group: "custpage_qty_dist_form_item_sublist",
+              line: i,
+              name: "custpage_item_totals",
+            })
+          );
+        }
+        let fieldValueSum = sublistValues.reduce((pre, cur) => pre + cur);
+        log.debug({
+          title: "fieldValueSum POST:",
+          details: fieldValueSum,
+        });
       }
     } catch (err) {
       log.debug({

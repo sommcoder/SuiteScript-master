@@ -15,17 +15,33 @@ fields SHOULD NOT populate, field's sum NEEDS to equal the value in Total Qty fi
  *@NApiVersion 2.0
  *@NScriptType ClientScript
  */
-define([], function () {
+define(["N/ui/message"], function (msg) {
   var fieldId;
   var sublistField;
+  var sublistId;
   var subLnCount;
   var itemRatioValue;
   var totalQuantityNum;
   var subLine;
 
   // Field Value State: Tracks the values presently in the item totals fields. Their sum NEEDS to equal the value in totalQty field
+
+  // Object Design:
+  // var itemTotalsArr = [
+  //   {lineKey: lineKey,
+  //    amount: amount},
+  //   lineKey: lineKey,
+  //    amount: amount},
+  //   lineKey: lineKey,
+  //    amount: amount},
+  // ];
+
+  // line memory:
+  var lineKey;
+  var lineValue;
   var itemTotalsArr = [];
   var fieldValueSum;
+  var overrideMsg;
 
   // UI id's:
   var overrideBoxId = "custpage_qty_dist_override_box";
@@ -33,6 +49,7 @@ define([], function () {
   var itemSublistId = "custpage_qty_dist_form_item_sublist";
   var itemTotalsId = "custpage_item_totals";
   var distRatioId = "custpage_qty_distribution_field";
+  var lineKeyField = "custpage_line_key_field";
 
   function pageInit(context) {
     try {
@@ -40,14 +57,46 @@ define([], function () {
       subLnCount = currRecord.getLineCount({
         sublistId: itemSublistId,
       });
+
+      overrideMsg = msg.create({
+        type: "information",
+        title: "Override Feature Info",
+        duration: 6500, // milliseconds
+        message:
+          "Ensure that the 'amount' of each line item equals the total quantity in the Main body field",
+      });
+
       for (var i = 0; i < subLnCount; i++) {
+        // initially, set all amount fields to disabled!
         sublistField = currRecord.getSublistField({
           sublistId: itemSublistId,
           fieldId: itemTotalsId,
           line: i,
         });
         sublistField.isDisabled = true;
+
+        // construct the line/amount object in memory
+
+        lineValue = currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: itemTotalsId,
+          line: i,
+        });
+
+        lineKey = currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: lineKeyField,
+          line: i,
+        });
+
+        console.log("line Key:", lineKey);
+
+        itemTotalsArr[i] = {
+          lineKey: lineKey,
+          amount: lineValue,
+        };
       }
+      console.log(itemTotalsArr);
     } catch (err) {
       console.log(err);
     }
@@ -55,11 +104,63 @@ define([], function () {
 
   function fieldChanged(context) {
     try {
-      console.log("FC:", context.fieldId);
       fieldId = context.fieldId;
+      sublistId = context.sublistId;
       currRecord = context.currentRecord;
-      if (fieldId == overrideBoxId) toggleOverride(currRecord);
+      subLine = context.line;
 
+      console.log(
+        "FC:",
+        "sublistId:",
+        sublistId,
+        "fieldId:",
+        fieldId,
+        "subLine:",
+        subLine
+      );
+      // override box change:
+      if (fieldId == overrideBoxId) {
+        toggleOverride(currRecord);
+        overrideMsg.show();
+      }
+
+      // item total field change:
+      if (fieldId == itemTotalsId) {
+        itemValue = currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: itemTotalsId,
+          line: subLine,
+        });
+
+        keyValue = currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: lineKeyField,
+          line: subLine,
+        });
+
+        console.log("key:", keyValue, "item:", itemValue);
+
+        itemTotalsArr[subLine].lineKey = keyValue;
+        itemTotalsArr[subLine].amount = itemValue;
+      }
+      console.log("FC: itemTotalsArr:", itemTotalsArr);
+
+      // if each line's amount is filled out THEN we perform the calculation:
+      for (var i = 0; i < itemTotalsArr.length; i++) {
+        console.log("iteration:", itemTotalsArr[i].amount);
+
+        /*
+         
+        fix below!
+         
+        */
+        // the += operator is not doing what I want!
+        fieldValueSum += itemTotalsArr[i].amount;
+
+        console.log("itemFieldSum:", fieldValueSum);
+      }
+
+      // total qty field change:
       if (fieldId == totalQtyId) {
         totalQuantityNum = currRecord.getValue({
           fieldId: fieldId,
@@ -114,33 +215,28 @@ define([], function () {
       );
 
       // push unique fieldIds to the array
-      if (sublistId === itemSublistId && !itemTotalsArr.includes(fieldId))
-        addFieldValues(fieldId);
+      // if (sublistId === itemSublistId && !itemTotalsArr.includes(fieldId))
+      //   addFieldValues(fieldId);
 
       return true;
-      // else return false
+      // if (fieldValueSum) {
+      //   console.log("we're good!");
+      //   return true;
+      // } else {
+      //   console.log("line totals do not equal grand total");
+      //   return false;
+      // }
     } catch (err) {
       console.log(err);
     }
   }
 
-  function addFieldValues(id) {
-    itemTotalsArr.push(id);
-    fieldValueSum = itemTotalsArr.reduce(function (prev, curr) {
-      prev + curr;
-    });
-    console.log("fieldValueSum:", fieldValueSum);
-  }
-
-  // function postSourcing(context) {
-  //   try {
-  //     console.log("PS context:", context);
-  //     console.log("PS sub:", context.sublistId);
-  //     console.log("PS field:", context.fieldId);
-  //     fieldId = context.fieldId;
-  //   } catch (err) {
-  //     console.log(err);
-  //   }
+  // function addFieldValues(id) {
+  //   itemTotalsArr.push(id);
+  //   fieldValueSum = itemTotalsArr.reduce(function (prev, curr) {
+  //     prev + curr;
+  //   });
+  //   console.log("fieldValueSum:", fieldValueSum);
   // }
 
   function toggleOverride(currRecord) {
@@ -162,6 +258,5 @@ define([], function () {
     pageInit: pageInit,
     fieldChanged: fieldChanged,
     validateField: validateField,
-    // postSourcing: postSourcing,
   };
 });
