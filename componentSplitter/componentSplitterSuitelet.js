@@ -213,13 +213,17 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
 
         for (let i = 0; i < lnCount; i++) {
           sublistValues.push(
-            req.getSublistValue({
+            +req.getSublistValue({
               group: "custpage_qty_dist_form_item_sublist",
               line: i,
               name: "custpage_item_totals",
             })
           );
         }
+        log.debug({
+          title: "sublistValues:",
+          details: sublistValues,
+        });
         let fieldValueSum = sublistValues.reduce((pre, cur) => pre + cur);
         log.debug({
           title: "fieldValueSum POST:",
