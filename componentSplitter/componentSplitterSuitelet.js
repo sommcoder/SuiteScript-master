@@ -201,34 +201,79 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
       } else {
         // save the record with information on the suitelet form
         log.debug({
-          title: "POST request:",
-          details: context,
+          title: "POST request parameters:",
+          details: context.request.parameters,
         });
         // POST (once we click the SubmitBtn)
         const req = context.request;
         const lnCount = req.getLineCount({
           group: "custpage_qty_dist_form_item_sublist",
         });
-        let sublistValues = [];
+
+        // let key = function(obj) {
+        //   return obj.
+        // }
+        let sublistValObj = {};
 
         for (let i = 0; i < lnCount; i++) {
-          sublistValues.push(
-            +req.getSublistValue({
-              group: "custpage_qty_dist_form_item_sublist",
-              line: i,
-              name: "custpage_item_totals",
-            })
-          );
+          let key = req.getSublistValue({
+            group: "custpage_qty_dist_form_item_sublist",
+            line: i,
+            name: "custpage_line_key_field",
+          });
+
+          let total = +req.getSublistValue({
+            group: "custpage_qty_dist_form_item_sublist",
+            line: i,
+            name: "custpage_item_totals",
+          });
+
+          let ratio = +req.getSublistValue({
+            group: "custpage_qty_dist_form_item_sublist",
+            line: i,
+            name: "custpage_qty_distribution_field",
+          });
+          // each line has a unique linekey, no conditional checks required?
+          sublistValObj[key] = {
+            total: total,
+            ratio: ratio,
+          };
         }
+
+        // get total quantity field
+        let totalQuantity = +req.parameters.custpage_total_quantity_field;
+
         log.debug({
-          title: "sublistValues:",
-          details: sublistValues,
+          title: "sublistValObj:",
+          details: sublistValObj,
         });
-        let fieldValueSum = sublistValues.reduce((pre, cur) => pre + cur);
+        let lineKeyArr = Object.keys(sublistValObj);
         log.debug({
-          title: "fieldValueSum POST:",
-          details: fieldValueSum,
+          title: "keysArr:",
+          details: lineKeyArr,
         });
+
+        for (let i = 0; i < lineKeyArr.length; i++) {
+          log.debug({
+            title: "total values:",
+            details: sublistValObj[lineKeyArr[i]],
+          });
+
+          let totalCheck =
+            sublistValObj[lineKeyArr[i]].total /
+            sublistValObj[lineKeyArr[i]].ratio;
+
+          log.debug({
+            title: "totalCheck:",
+            details: totalCheck,
+          });
+
+          if (totalCheck !== totalQuantity)
+            log.debug({
+              title: "not valid?",
+              details: "not a valid field entry!",
+            });
+        }
       }
     } catch (err) {
       log.debug({
