@@ -213,6 +213,9 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         // let key = function(obj) {
         //   return obj.
         // }
+
+        ////// this below could be not needed???!!
+
         let sublistValObj = {};
 
         for (let i = 0; i < lnCount; i++) {

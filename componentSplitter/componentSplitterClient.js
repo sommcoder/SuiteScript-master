@@ -140,25 +140,26 @@ define(["N/ui/message"], function (msg) {
 
         console.log("key:", keyValue, "item:", itemValue);
 
+        // reassign the array of object that contains LineKey and Amount:
         itemTotalsArr[subLine].lineKey = keyValue;
         itemTotalsArr[subLine].amount = itemValue;
       }
       console.log("FC: itemTotalsArr:", itemTotalsArr);
 
       // if each line's amount is filled out THEN we perform the calculation:
-      for (var i = 0; i < itemTotalsArr.length; i++) {
-        console.log("iteration:", itemTotalsArr[i].amount);
+      // for (var i = 0; i < itemTotalsArr.length; i++) {
+      //   console.log("iteration:", itemTotalsArr[i].amount);
 
-        /*
-         
-        fix below!
-         
-        */
-        // the += operator is not doing what I want!
-        fieldValueSum += itemTotalsArr[i].amount;
+      //   /*
 
-        console.log("itemFieldSum:", fieldValueSum);
-      }
+      //   fix below!
+
+      //   */
+      //   // the += operator is not doing what I want!
+      //   fieldValueSum += itemTotalsArr[i].amount;
+
+      //   console.log("itemFieldSum:", fieldValueSum);
+      // }
 
       // total qty field change:
       if (fieldId == totalQtyId) {
@@ -174,13 +175,7 @@ define(["N/ui/message"], function (msg) {
             fieldId: distRatioId,
             line: i,
           });
-          console.log(i, itemRatioValue);
 
-          console.log(i, totalQuantityNum * itemRatioValue);
-
-          console.log(
-            Number.parseFloat(totalQuantityNum * itemRatioValue).toFixed(2)
-          );
           currRecord.selectLine({
             sublistId: itemSublistId,
             line: i,
@@ -213,19 +208,36 @@ define(["N/ui/message"], function (msg) {
         "subLine:",
         subLine
       );
+      // get total quantity field value
+      totalQuantityNum = currRecord.getValue({
+        fieldId: totalQtyId,
+      });
+      overrideBoxValue = currRecord.getValue({
+        fieldId: overrideBoxId,
+      });
+      console.log(totalQuantityNum);
+      console.log(overrideBoxValue);
+      /*
+ 
+type here
+ 
+*/
+      if (overrideBoxValue === "T") {
+        if (fieldId !== totalQuantityNum) return false;
+        else return true;
+      }
+      if (overrideBoxValue === "F") {
+        if (fieldId === totalQuantityNum) return true;
+        // if neither the above, then run the calculation:
+        itemRatioValue = currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: distRatioId,
+          line: subLine,
+        });
 
-      // push unique fieldIds to the array
-      // if (sublistId === itemSublistId && !itemTotalsArr.includes(fieldId))
-      //   addFieldValues(fieldId);
-
+        if (totalQuantityNum === fieldId / itemRatioValue) return true;
+      }
       return true;
-      // if (fieldValueSum) {
-      //   console.log("we're good!");
-      //   return true;
-      // } else {
-      //   console.log("line totals do not equal grand total");
-      //   return false;
-      // }
     } catch (err) {
       console.log(err);
     }
@@ -260,3 +272,9 @@ define(["N/ui/message"], function (msg) {
     validateField: validateField,
   };
 });
+
+/*
+ 
+you just need to validate that the line item equals the total quantity field
+ 
+*/
