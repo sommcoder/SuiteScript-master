@@ -29,10 +29,11 @@ MY NOTES:
 scripts:
 - UE (IR section / SO section)
 - Suitelet
+- client script for validation/interactivity
 
 
 User Event:
-1) add a custom field to the item record called QTY DISTRIBUTOR RATIO
+1) add a custom field to the item record called QTY DISTRIBUTiION RATIO
 2) The validation on the field will only accept values between 0 and 1
 3) on View, beforeLoad on the SO, we will add a button to the UI that will popup the suitelet scripts
 4) When the button is clicked it will activate a function window.open() and display the Suitelet 

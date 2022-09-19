@@ -53,6 +53,32 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           container: "custpage_header_fieldgroup",
         });
 
+        const recordTypeField = qtyDistForm.addField({
+          id: "custpage_record_type_hidden",
+          label: "recordType",
+          type: "text",
+          container: "custpage_header_fieldgroup",
+        });
+
+        recordTypeField.updateDisplayType({
+          displayType: "hidden",
+        });
+
+        recordTypeField.defaultValue = currRecordType;
+
+        const recordIdField = qtyDistForm.addField({
+          id: "custpage_record_id_hidden",
+          label: "recordId",
+          type: "text",
+          container: "custpage_header_fieldgroup",
+        });
+
+        recordIdField.updateDisplayType({
+          displayType: "hidden",
+        });
+
+        recordIdField.defaultValue = currRecordId;
+
         const totalField = qtyDistForm.addField({
           id: "custpage_total_quantity_field",
           label: "Total Quantity",
@@ -106,7 +132,7 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
 
         const distRatioField = itemSublist.addField({
           id: "custpage_qty_distribution_field",
-          label: "Qty Ratio",
+          label: "Ratio Number",
           type: "float",
         });
 
@@ -115,21 +141,27 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         //     width: 10,
         //   });
 
-        const itemTotalsField = itemSublist.addField({
-          id: "custpage_item_totals",
-          label: "amount",
+        const currItemTotalsField = itemSublist.addField({
+          id: "custpage_curr_item_totals",
+          label: "current qty",
           type: "float",
         });
 
-        itemTotalsField.updateDisplayType({
+        currItemTotalsField.updateDisplayType({
           displayType: "entry",
         });
 
-        itemTotalsField.isMandatory = true;
+        currItemTotalsField.isMandatory = true;
 
-        // itemTotalsField.updateDisplayType({
-        //   displayType: "disabled",
-        // });
+        const newItemTotalsField = itemSublist.addField({
+          id: "custpage_new_item_totals",
+          label: "new qty",
+          type: "float",
+        });
+
+        newItemTotalsField.updateDisplayType({
+          displayType: "entry",
+        });
 
         let itemIds = [];
         for (let i = 0; i < sublistItems.length; i++) {
@@ -199,7 +231,7 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           pageObject: qtyDistForm,
         });
       } else {
-        // save the record with information on the suitelet form
+        // POST block: save the record with information on the suitelet form
         log.debug({
           title: "POST request parameters:",
           details: context.request.parameters,
@@ -210,6 +242,11 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           group: "custpage_qty_dist_form_item_sublist",
         });
 
+        const boxVal = req.parameters.custpage_qty_dist_override_box;
+        log.debug({
+          title: "boxVal:",
+          details: boxVal,
+        });
         // let key = function(obj) {
         //   return obj.
         // }
@@ -217,32 +254,54 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         ////// this below could be not needed???!!
 
         let sublistValObj = {};
+        let total;
+        let key;
+        let ratio;
 
         for (let i = 0; i < lnCount; i++) {
-          let key = req.getSublistValue({
+          key = req.getSublistValue({
             group: "custpage_qty_dist_form_item_sublist",
             line: i,
             name: "custpage_line_key_field",
           });
 
-          let total = +req.getSublistValue({
-            group: "custpage_qty_dist_form_item_sublist",
-            line: i,
-            name: "custpage_item_totals",
-          });
+          if (boxVal == "T") {
+            total = +req.getSublistValue({
+              group: "custpage_qty_dist_form_item_sublist",
+              line: i,
+              name: "custpage_new_item_totals",
+            });
+            log.debug({
+              title: "total:",
+              details: total,
+            });
+          }
 
-          let ratio = +req.getSublistValue({
+          if (boxVal == "F") {
+            // if the override box is FALSE:
+            total = +req.getSublistValue({
+              group: "custpage_qty_dist_form_item_sublist",
+              line: i,
+              name: "custpage_curr_item_totals",
+            });
+            log.debug({
+              title: "total:",
+              details: total,
+            });
+          }
+
+          ratio = +req.getSublistValue({
             group: "custpage_qty_dist_form_item_sublist",
             line: i,
             name: "custpage_qty_distribution_field",
           });
+
           // each line has a unique linekey, no conditional checks required?
           sublistValObj[key] = {
             total: total,
             ratio: ratio,
           };
         }
-
         // get total quantity field
         let totalQuantity = +req.parameters.custpage_total_quantity_field;
 
@@ -251,32 +310,72 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           details: sublistValObj,
         });
         let lineKeyArr = Object.keys(sublistValObj);
+
+        let totalCheck = 0;
+        for (let i = 0; i < lineKeyArr.length; i++)
+          totalCheck += sublistValObj[lineKeyArr[i]].total;
+
         log.debug({
-          title: "keysArr:",
-          details: lineKeyArr,
+          title: "totalCheck post loop:",
+          details: ["totalCheck:", totalCheck, "totalQty:", totalQuantity],
         });
 
-        for (let i = 0; i < lineKeyArr.length; i++) {
+        // if the totals add up to the quantity:
+        if (boxVal == "T" && totalCheck !== totalQuantity) return;
+        // Redirect if the conditions don't match??
+
+        // redirect.toRecord({
+        //   id: recordId,
+        //   type: recordType,
+        //   isEditMode: false,
+        //   parameters: Object,
+        // });
+
+        // special hidden fields with pertinent info
+        const recordId = req.parameters.custpage_record_id_hidden;
+        const recordType = req.parameters.custpage_record_type_hidden;
+
+        /// load record based on above^
+        const ogRecord = record.load({
+          type: recordType,
+          id: recordId,
+        });
+
+        log.debug({
+          title: "ogRecord:",
+          details: ogRecord,
+        });
+
+        // get line count:
+        let lineCount = ogRecord.getLineCount({
+          sublistId: "item",
+        });
+
+        log.debug({
+          title: "ogRecord ln Count:",
+          details: lineCount,
+        });
+
+        // set the sublist on the copied record
+        for (let i = 0; i < lineCount; i++) {
           log.debug({
-            title: "total values:",
-            details: sublistValObj[lineKeyArr[i]],
+            title: "iteration values:",
+            details: sublistValObj[lineKeyArr[i]].total,
           });
-
-          let totalCheck =
-            sublistValObj[lineKeyArr[i]].total /
-            sublistValObj[lineKeyArr[i]].ratio;
-
-          log.debug({
-            title: "totalCheck:",
-            details: totalCheck,
+          ogRecord.setSublistValue({
+            sublistId: "item",
+            fieldId: "quantity",
+            line: i,
+            value: sublistValObj[lineKeyArr[i]].total,
           });
-
-          if (totalCheck !== totalQuantity)
-            log.debug({
-              title: "not valid?",
-              details: "not a valid field entry!",
-            });
         }
+
+        ogRecord.save();
+
+        log.debug({
+          title: "ogRecord POST save:",
+          details: ogRecord,
+        });
       }
     } catch (err) {
       log.debug({
