@@ -125,11 +125,6 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           displayType: "hidden",
         });
 
-        //   nameField.updateDisplaySize({
-        //     height: 10,
-        //     width: 10,
-        //   });
-
         const distRatioField = itemSublist.addField({
           id: "custpage_qty_distribution_field",
           label: "Ratio Number",
@@ -159,26 +154,33 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           type: "float",
         });
 
+        newItemTotalsField.isMandatory = true;
+
         newItemTotalsField.updateDisplayType({
           displayType: "entry",
         });
 
+        // array used as the filter for our search method below
         let itemIds = [];
         for (let i = 0; i < sublistItems.length; i++) {
-          let key = Object.keys(sublistItems[i]);
+          let lineKey = Object.keys(sublistItems[i]);
+          let itemId = Object.keys(sublistItems[i][lineKey]);
 
-          log.debug({
-            title: "key",
-            details: key,
-          });
-          // used to search for the item internal ids:
-          itemIds.push(sublistItems[i][key]);
+          // used for search method:
+          itemIds.push(+itemId);
 
           // sets the hidden uniquelinekeyfield:
           itemSublist.setSublistValue({
             id: "custpage_line_key_field",
             line: i,
-            value: key,
+            value: lineKey,
+          });
+
+          // sets the currQty field:
+          itemSublist.setSublistValue({
+            id: "custpage_curr_item_totals",
+            line: i,
+            value: sublistItems[i][lineKey][itemId],
           });
         }
 
@@ -254,7 +256,7 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         ////// this below could be not needed???!!
 
         let sublistValObj = {};
-        let total;
+        let quantity;
         let key;
         let ratio;
 
@@ -265,73 +267,27 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
             name: "custpage_line_key_field",
           });
 
-          if (boxVal == "T") {
-            total = +req.getSublistValue({
-              group: "custpage_qty_dist_form_item_sublist",
-              line: i,
-              name: "custpage_new_item_totals",
-            });
-            log.debug({
-              title: "total:",
-              details: total,
-            });
-          }
-
-          if (boxVal == "F") {
-            // if the override box is FALSE:
-            total = +req.getSublistValue({
-              group: "custpage_qty_dist_form_item_sublist",
-              line: i,
-              name: "custpage_curr_item_totals",
-            });
-            log.debug({
-              title: "total:",
-              details: total,
-            });
-          }
-
-          ratio = +req.getSublistValue({
+          quantity = +req.getSublistValue({
             group: "custpage_qty_dist_form_item_sublist",
             line: i,
-            name: "custpage_qty_distribution_field",
+            name: "custpage_new_item_totals",
           });
 
-          // each line has a unique linekey, no conditional checks required?
+          // each line has a unique linekey, validation was already done in the client script!
           sublistValObj[key] = {
-            total: total,
-            ratio: ratio,
+            quantity: quantity,
           };
         }
-        // get total quantity field
-        let totalQuantity = +req.parameters.custpage_total_quantity_field;
 
         log.debug({
           title: "sublistValObj:",
           details: sublistValObj,
         });
-        let lineKeyArr = Object.keys(sublistValObj);
 
-        let totalCheck = 0;
-        for (let i = 0; i < lineKeyArr.length; i++)
-          totalCheck += sublistValObj[lineKeyArr[i]].total;
+        // get total quantity field
+        let totalQuantity = +req.parameters.custpage_total_quantity_field;
 
-        log.debug({
-          title: "totalCheck post loop:",
-          details: ["totalCheck:", totalCheck, "totalQty:", totalQuantity],
-        });
-
-        // if the totals add up to the quantity:
-        if (boxVal == "T" && totalCheck !== totalQuantity) return;
-        // Redirect if the conditions don't match??
-
-        // redirect.toRecord({
-        //   id: recordId,
-        //   type: recordType,
-        //   isEditMode: false,
-        //   parameters: Object,
-        // });
-
-        // special hidden fields with pertinent info
+        // special hidden fields with critical data:
         const recordId = req.parameters.custpage_record_id_hidden;
         const recordType = req.parameters.custpage_record_type_hidden;
 
@@ -356,17 +312,26 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           details: lineCount,
         });
 
+        let lineKeyArr = Object.keys(sublistValObj);
+
         // set the sublist on the copied record
         for (let i = 0; i < lineCount; i++) {
           log.debug({
             title: "iteration values:",
-            details: sublistValObj[lineKeyArr[i]].total,
+            details: sublistValObj[lineKeyArr[i]].quantity,
           });
           ogRecord.setSublistValue({
             sublistId: "item",
             fieldId: "quantity",
             line: i,
-            value: sublistValObj[lineKeyArr[i]].total,
+            value: sublistValObj[lineKeyArr[i]].quantity,
+          });
+
+          ogRecord.setSublistValue({
+            sublistId: "item",
+            fieldId: "amount",
+            line: i,
+            value: 100 * i,
           });
         }
 

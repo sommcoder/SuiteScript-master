@@ -1,41 +1,31 @@
-/*
------------ Use Cases: ----------
-1) override TRUE: 
-  - new Qty field enables
-  - allows user to enter their own values
-  - All of the values MUST add up to the Total Qty field
-
-2) override FALSE:
-  - script calcs the curr qty values.
-  - this is what gets submitted
-
-
-
-*/
-
 /**
  *@NApiVersion 2.0
  *@NScriptType ClientScript
  */
-define(["N/ui/message"], function (msg) {
-  // UI components:
+define(["N/ui/message", "N/error"], function (msg, error) {
+  // context variables:
   var fieldId;
+  var subLine;
   var sublistField;
   var sublistId;
+
+  //
   var subLnCount;
-  var itemRatioValue;
-  var totalQuantityNum;
-  var subLine;
   var newItemValue;
 
-  // line memory:
+  // memory:
   var lineKey;
   var itemTotalsArr = [];
+  var ratioWeightTotal = 0;
+  var itemRatioValue;
+  var totalQuantityNum;
+  var totalCalcItemVals = 0;
 
   // UI messages:
   var overrideMsg;
+  var failedEntryMsg;
 
-  // UI id's:
+  // Custom UI internal id's:
   var overrideBoxId = "custpage_qty_dist_override_box";
   var totalQtyId = "custpage_total_quantity_field";
   var itemSublistId = "custpage_qty_dist_form_item_sublist";
@@ -59,6 +49,14 @@ define(["N/ui/message"], function (msg) {
           "Ensure that the 'new qty' field of each line item equals the total quantity in the Main body field BEFORE submitting the form",
       });
 
+      failedEntryMsg = msg.create({
+        type: "warning",
+        title: "Incorrect Quantity Values",
+        duration: 6500, // milliseconds
+        message:
+          "the sum of the line items DO NOT equal the value in the 'Total Quantity' field",
+      });
+
       for (var i = 0; i < subLnCount; i++) {
         // initially, set all amount fields to disabled!
         sublistField = currRecord.getSublistField({
@@ -74,13 +72,6 @@ define(["N/ui/message"], function (msg) {
         });
         sublistField.isDisabled = true;
 
-        // on pageInit construct the line/amount object in memory for future assignment on fieldChange
-        // lineValue = currRecord.getSublistValue({
-        //   sublistId: itemSublistId,
-        //   fieldId: currItemTotalsId,
-        //   line: i,
-        // });
-
         lineKey = currRecord.getSublistValue({
           sublistId: itemSublistId,
           fieldId: lineKeyFieldId,
@@ -89,10 +80,18 @@ define(["N/ui/message"], function (msg) {
 
         console.log("line Key:", lineKey);
 
-        // on pageInit all of the amounts should be a 0 integer to be assigned on fieldChange
+        ratioWeightTotal += currRecord.getSublistValue({
+          sublistId: itemSublistId,
+          fieldId: distRatioId,
+          line: i,
+        });
+
+        console.log("ratioweighttotal:", ratioWeightTotal);
+
+        // set the inital values for linekey/qty object for each item line in the sublist:
         itemTotalsArr[i] = {
           lineKey: lineKey,
-          amount: 0,
+          qty: 0,
         };
       }
       console.log("page init:", itemTotalsArr);
@@ -107,16 +106,6 @@ define(["N/ui/message"], function (msg) {
       sublistId = context.sublistId;
       currRecord = context.currentRecord;
       subLine = context.line;
-
-      console.log(
-        "FC:",
-        "sublistId:",
-        sublistId,
-        "fieldId:",
-        fieldId,
-        "subLine:",
-        subLine
-      );
 
       // override box clicked:
       if (fieldId == overrideBoxId) toggleOverride(currRecord);
@@ -140,7 +129,7 @@ define(["N/ui/message"], function (msg) {
         });
         // reassign the itemTotalsArr based on which key/newItemValue was changed:
         itemTotalsArr[subLine].lineKey = keyValue;
-        itemTotalsArr[subLine].amount = newItemValue;
+        itemTotalsArr[subLine].qty = newItemValue;
         console.log("FC: manual:", itemTotalsArr);
       }
 
@@ -157,7 +146,7 @@ define(["N/ui/message"], function (msg) {
         // if the box is true, exit current code execution
         if (overrideBoxValue) return;
         else {
-          // if box is false, calculate and set CURRQTY fields using ratio number:
+          // if box is false, calculate and set NEWQTY fields using ratio number:
           totalQuantityNum = currRecord.getValue({
             fieldId: totalQtyId,
           });
@@ -174,22 +163,23 @@ define(["N/ui/message"], function (msg) {
               sublistId: itemSublistId,
               line: i,
             });
+            console.log(
+              "math check:",
+              (itemRatioValue / ratioWeightTotal) * totalQuantityNum
+            );
 
-            var currQtyVal = +Number.parseFloat(
-              totalQuantityNum * itemRatioValue
+            var newQtyVal = +Number.parseFloat(
+              (itemRatioValue / ratioWeightTotal) * totalQuantityNum
             ).toFixed(2);
+
+            console.log("newQtyValue", newQtyVal);
 
             currRecord.setCurrentSublistValue({
               sublistId: itemSublistId,
-              fieldId: currItemTotalsId,
-              value: currQtyVal,
+              fieldId: newItemTotalsId,
+              value: newQtyVal,
             });
 
-            // currItemValue = currRecord.getSublistValue({
-            //   sublistId: itemSublistId,
-            //   fieldId: currItemTotalsId,
-            //   line: i,
-            // });
             // reset the itemTotalsArr:
             keyValue = currRecord.getSublistValue({
               sublistId: itemSublistId,
@@ -198,7 +188,7 @@ define(["N/ui/message"], function (msg) {
             });
             // reassigns lineKey:
             itemTotalsArr[subLine].lineKey = keyValue;
-            itemTotalsArr[subLine].amount = currQtyVal;
+            itemTotalsArr[subLine].qty = newQtyVal;
           }
           console.log("FC calc: itemTotalsArr", itemTotalsArr);
         }
@@ -211,114 +201,95 @@ define(["N/ui/message"], function (msg) {
   function validateField(context) {
     try {
       fieldId = context.fieldId;
-      sublistId = context.sublistId;
-      subLine = context.line;
-
-      console.log(
-        "VF, field:",
-        fieldId,
-        "sublist:",
-        sublistId,
-        "subLine:",
-        subLine
-      );
+      // do I need any validations?
+      // each newQty field SHOULD be less than the value in the 'Total Qty' field
 
       return true;
-      // only validate that the fields entered are LESS than the total field
-      // validate onSubmit that the values in the Array all add up to the total qty field val
-
-      // if (fieldId === currItemTotalsId) {
-      //   overrideBoxValue = currRecord.getValue({
-      //     fieldId: overrideBoxId,
-      //   });
-
-      //   console.log("box:", overrideBoxValue);
-
-      //   if (overrideBoxValue === true) {
-      //     // get total quantity field value
-      //     totalQuantityNum = currRecord.getValue({
-      //       fieldId: totalQtyId,
-      //     });
-      //     console.log("total quantity:", totalQuantityNum);
-      //     // if the user is using override, see if the individual amount will equal the total quantity when dividing by the item's ratio
-      //     itemRatioValue = currRecord.getSublistValue({
-      //       sublistId: itemSublistId,
-      //       fieldId: distRatioId,
-      //       line: subLine,
-      //     });
-
-      //     console.log("ratio:", itemRatioValue);
-
-      //     sublistLineAmount = currRecord.getSublistValue({
-      //       sublistId: itemSublistId,
-      //       fieldId: fieldId,
-      //       line: subLine,
-      //     });
-
-      //     console.log("sublistLineAmount", sublistLineAmount);
-
-      //     console.log("math:", sublistLineAmount / itemRatioValue);
-
-      //     if (totalQuantityNum === sublistLineAmount / itemRatioValue)
-      //       return true;
-      //   }
-      // }
     } catch (err) {
       console.log(err);
     }
   }
 
-  function toggleOverride(currRecord) {
-    // Handles the user's VIEW:
-    // apparently .isDisabled should affect the ENTIRE sublist column, however during testing this did not work! Only the field specified was disabled
+  function saveRecord(context) {
+    try {
+      currRecord = context.currentRecord;
 
-    // set the variable to the value:
-    overrideBoxValue = currRecord.getValue({
-      fieldId: overrideBoxId,
-    });
+      // throw error if Total QTY field has no value
+      if (
+        !currRecord.getValue({
+          fieldId: totalQtyId,
+        })
+      ) {
+        console.log("total qty has no value");
+        return false;
+      }
 
-    // if the override box is TRUE, show message
-    if (overrideBoxValue === true) overrideMsg.show();
+      // sums the individual line item qty's:
+      for (var i = 0; i < itemTotalsArr.length; i++)
+        totalCalcItemVals += itemTotalsArr[i].qty;
 
-    for (var i = 0; i < subLnCount; i++) {
-      sublistField = currRecord.getSublistField({
-        sublistId: itemSublistId,
-        fieldId: newItemTotalsId,
-        line: i,
+      // total must EQUAl the total qty fields value:
+      if (Math.ceil(totalCalcItemVals) === totalQuantityNum) {
+        return true;
+      } else {
+        failedEntryMsg.show();
+        return false;
+      }
+    } catch (err) {
+      log.debug({
+        title: "try/catch error:",
+        details: err,
       });
-
-      // reset the new QTY sublist values to an empty string
-      currRecord.selectLine({
-        sublistId: itemSublistId,
-        line: i,
-      });
-      currRecord.setCurrentSublistValue({
-        sublistId: itemSublistId,
-        fieldId: newItemTotalsId,
-        value: "",
-      });
-
-      sublistField.isDisabled === true
-        ? (sublistField.isDisabled = false)
-        : (sublistField.isDisabled = true);
     }
   }
 
-  // assigned differently depending if the override box is activated or not.
-  // if box is true: get values from NEW QTY
-  // if box is false: get values form CURR QTY
-  // this array will be used for our form validation onSubmit
-  // Recalculates the item totalsArr:
+  function toggleOverride(currRecord) {
+    try {
+      // Handles the user's VIEW:
+      // apparently .isDisabled should affect the ENTIRE sublist column, however during testing this did not work! Only the field specified was disabled
+
+      // set the variable to the value:
+      overrideBoxValue = currRecord.getValue({
+        fieldId: overrideBoxId,
+      });
+
+      // if the override box is TRUE, show message
+      if (overrideBoxValue === true) overrideMsg.show();
+
+      for (var i = 0; i < subLnCount; i++) {
+        sublistField = currRecord.getSublistField({
+          sublistId: itemSublistId,
+          fieldId: newItemTotalsId,
+          line: i,
+        });
+
+        // reset the new QTY sublist values to an empty string
+        currRecord.selectLine({
+          sublistId: itemSublistId,
+          line: i,
+        });
+        currRecord.setCurrentSublistValue({
+          sublistId: itemSublistId,
+          fieldId: newItemTotalsId,
+          value: "",
+        });
+
+        sublistField.isDisabled === true
+          ? (sublistField.isDisabled = false)
+          : (sublistField.isDisabled = true);
+      }
+    } catch (err) {
+      log.debug({
+        title: "try/catch error:",
+        details: err,
+      });
+    }
+  }
 
   return {
     pageInit: pageInit,
     fieldChanged: fieldChanged,
     validateField: validateField,
+    saveRecord: saveRecord,
   };
 });
-
-/*
- 
-you just need to validate that the line item equals the total quantity field
- 
-*/

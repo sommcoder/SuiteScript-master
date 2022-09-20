@@ -115,9 +115,14 @@ define(["N/url"], function (url) {
           fieldId: "item",
           line: i,
         });
+        let qty = currRecord.getSublistValue({
+          sublistId: "item",
+          fieldId: "quantity",
+          line: i,
+        });
         // push the itemId value to the lineKey, this will allow for like-items on separate lines
         sublistValuesArr.push({
-          [lineKey]: itemId,
+          [lineKey]: { [itemId]: qty },
         });
       }
 
