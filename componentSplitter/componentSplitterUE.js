@@ -95,13 +95,6 @@ define(["N/url"], function (url) {
         sublistId: "item",
       });
 
-      // obj design:
-      // object = [
-      //   { lineKey: itemId },
-      //   { lineKey: itemId },
-      //   { lineKey: itemId },
-      // ];
-
       const sublistValuesArr = [];
 
       for (let i = 0; i < lnCount; i++) {

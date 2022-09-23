@@ -25,7 +25,6 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         const sublistItems = JSON.parse(reqParams.sublistItems);
         const currRecordId = reqParams.currRecordId;
         const currRecordType = reqParams.currRecordType;
-        const tranId = reqParams.tranId;
 
         log.debug({
           title: "sublistItems:",
@@ -160,6 +159,18 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           displayType: "entry",
         });
 
+        // const newAmountTotalsField = itemSublist.addField({
+        //   id: "custpage_new_amount_field",
+        //   label: "amount",
+        //   type: "float",
+        // });
+
+        // newAmountTotalsField.isMandatory = true;
+
+        // newAmountTotalsField.updateDisplayType({
+        //   displayType: "entry",
+        // });
+
         // array used as the filter for our search method below
         let itemIds = [];
         for (let i = 0; i < sublistItems.length; i++) {
@@ -258,7 +269,7 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         let sublistValObj = {};
         let quantity;
         let key;
-        let ratio;
+        let amount;
 
         for (let i = 0; i < lnCount; i++) {
           key = req.getSublistValue({
@@ -273,9 +284,15 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
             name: "custpage_new_item_totals",
           });
 
+          // amount = +req.getSublistValue({
+          //   group: "custpage_qty_dist_form_item_sublist",
+          //   line: i,
+          //   name: "custpage_new_amount_field",
+          // });
           // each line has a unique linekey, validation was already done in the client script!
           sublistValObj[key] = {
             quantity: quantity,
+            // amount: amount,
           };
         }
 
@@ -283,9 +300,6 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
           title: "sublistValObj:",
           details: sublistValObj,
         });
-
-        // get total quantity field
-        let totalQuantity = +req.parameters.custpage_total_quantity_field;
 
         // special hidden fields with critical data:
         const recordId = req.parameters.custpage_record_id_hidden;
@@ -327,12 +341,12 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
             value: sublistValObj[lineKeyArr[i]].quantity,
           });
 
-          ogRecord.setSublistValue({
-            sublistId: "item",
-            fieldId: "amount",
-            line: i,
-            value: 100 * i,
-          });
+          // ogRecord.setSublistValue({
+          //   sublistId: "item",
+          //   fieldId: "amount",
+          //   line: i,
+          //   value: sublistValObj[lineKeyArr[i]].amount,
+          // });
         }
 
         ogRecord.save();
