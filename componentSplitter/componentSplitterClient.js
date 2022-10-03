@@ -170,7 +170,7 @@ define(["N/ui/message", "N/error"], function (msg, error) {
 
             var newQtyVal = +Number.parseFloat(
               (itemRatioValue / ratioWeightTotal) * totalQuantityNum
-            ).toFixed(2);
+            );
 
             console.log("newQtyValue", newQtyVal);
 
@@ -228,8 +228,10 @@ define(["N/ui/message", "N/error"], function (msg, error) {
       for (var i = 0; i < itemTotalsArr.length; i++)
         totalCalcItemVals += itemTotalsArr[i].qty;
 
+      console.log("totalCalcVal:", totalCalcItemVals);
+      console.log(+totalCalcItemVals.toFixed(2));
       // total must EQUAl the total qty fields value:
-      if (Math.ceil(totalCalcItemVals) === totalQuantityNum) {
+      if (+totalCalcItemVals.toFixed(2) === totalQuantityNum) {
         return true;
       } else {
         failedEntryMsg.show();

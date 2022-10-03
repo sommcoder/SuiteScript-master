@@ -81,7 +81,7 @@ define(["N/ui/serverWidget", "N/search", "N/record"], function (
         const totalField = qtyDistForm.addField({
           id: "custpage_total_quantity_field",
           label: "Total Quantity",
-          type: "integer",
+          type: "float",
           container: "custpage_header_fieldgroup",
         });
 
