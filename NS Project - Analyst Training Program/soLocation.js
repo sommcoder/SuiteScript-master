@@ -16,10 +16,8 @@ line level location changed, throw alert if != to headerLocation
  */
 define(["N/ui/dialog"], function (dialog) {
   var currRecord;
-
   var headerLocationVal;
   var lineLocationVal;
-
   var sublistId;
   var fieldId;
   var lnCount;
@@ -30,7 +28,6 @@ define(["N/ui/dialog"], function (dialog) {
       sublistId: "item",
     });
     console.log("saveRecord!");
-
     // each item sublist item's location value should be equal to the header's location value
     for (var i = 0; i < lnCount; i++) {
       // iterate through sublist lines
@@ -42,26 +39,36 @@ define(["N/ui/dialog"], function (dialog) {
         sublistId: "item",
         fieldId: "location",
       });
+      // if ANY of the lines DO NOT equal the headLocationVal, return false!
       if (lineLocationVal !== headerLocationVal) return false;
       else return true;
     }
   }
-
   // validates a new line being added/created:
   function validateLine(context) {
     try {
       currRecord = context.currentRecord;
       sublistId = context.sublistId;
+
+      // line level location validation:
       if (sublistId === "item") {
+        console.log("VL: line location");
+
         headerLocationVal = currRecord.getValue({
           fieldId: "location",
         });
-        if (headerLocationVal) {
-          currRecord.setCurrentSublistValue({
-            sublistId: "item",
-            fieldId: "location",
-            value: headerLocationVal,
+        lineLocationVal = currRecord.getCurrentSublistValue({
+          sublistId: "item",
+          fieldId: "location",
+        });
+
+        if (headerLocationVal !== lineLocationVal) {
+          dialog.alert({
+            title: "Location Warning",
+            message:
+              "line-level location and header-level location values MUST match!",
           });
+          return false;
         }
       }
       return true;
@@ -75,16 +82,17 @@ define(["N/ui/dialog"], function (dialog) {
     try {
       currRecord = context.currentRecord;
       sublistId = context.sublistId;
+
       lineLocationVal = currRecord.getCurrentSublistValue({
         sublistId: "item",
         fieldId: "location",
       });
-
+      // if the line being "initted" evals falsey
       if (!lineLocationVal) {
         headerLocationVal = currRecord.getValue({
           fieldId: "location",
         });
-        if (!headerLocationVal) {
+        if (headerLocationVal) {
           currRecord.setCurrentSublistValue({
             sublistId: "item",
             fieldId: "location",
@@ -135,7 +143,7 @@ define(["N/ui/dialog"], function (dialog) {
               sublistId: "item",
               fieldId: "location",
               value: headerLocationVal,
-              ignoreFieldChange: true,
+              ignoreFieldChange: true, // this is imperative, otherwise on fieldChange that new event trigger perhaps ends the execution of the for loop???
             });
 
             // commit the currently selected line
@@ -150,30 +158,6 @@ define(["N/ui/dialog"], function (dialog) {
       // 27012;
       // 27034;
       // 27320;
-
-      // line level location fieldChange:
-      if (fieldId === "location" && sublistId === "item") {
-        console.log("FC: line location");
-
-        headerLocationVal = currRecord.getValue({
-          fieldId: "location",
-        });
-        lineLocationVal = currRecord.getCurrentSublistValue({
-          sublistId: "item",
-          fieldId: "location",
-        });
-
-        if (headerLocationVal !== lineLocationVal) {
-          // window.alert(
-          //   "line-level location and header-level location values MUST match!"
-          // );
-          dialog.alert({
-            title: "Location Warning",
-            message:
-              "line-level location and header-level location values MUST match!",
-          });
-        }
-      }
     } catch (err) {
       console.log(err);
     }
