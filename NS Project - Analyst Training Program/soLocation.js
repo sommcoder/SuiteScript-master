@@ -44,38 +44,6 @@ define(["N/ui/dialog"], function (dialog) {
       else return true;
     }
   }
-  // validates a new line being added/created:
-  function validateLine(context) {
-    try {
-      currRecord = context.currentRecord;
-      sublistId = context.sublistId;
-
-      // line level location validation:
-      if (sublistId === "item") {
-        console.log("VL: line location");
-
-        headerLocationVal = currRecord.getValue({
-          fieldId: "location",
-        });
-        lineLocationVal = currRecord.getCurrentSublistValue({
-          sublistId: "item",
-          fieldId: "location",
-        });
-
-        if (headerLocationVal !== lineLocationVal) {
-          dialog.alert({
-            title: "Location Warning",
-            message:
-              "line-level location and header-level location values MUST match!",
-          });
-          return false;
-        }
-      }
-      return true;
-    } catch (err) {
-      console.log(err);
-    }
-  }
 
   // user selects the sublist line:
   function lineInit(context) {
@@ -88,6 +56,7 @@ define(["N/ui/dialog"], function (dialog) {
         fieldId: "location",
       });
       // if the line being "initted" evals falsey
+      // ie. line-location is not entered yet
       if (!lineLocationVal) {
         headerLocationVal = currRecord.getValue({
           fieldId: "location",
@@ -103,6 +72,67 @@ define(["N/ui/dialog"], function (dialog) {
     } catch (err) {
       console.log(err);
     }
+  }
+
+  function validateLine(context) {
+    currRecord = context.currentRecord;
+    sublistId = context.sublistId;
+    headerLocationVal = currRecord.getValue({
+      fieldId: "location",
+    });
+    lineLocationVal = currRecord.getCurrentSublistValue({
+      sublistId: "item",
+      fieldId: "location",
+    });
+
+    if (lineLocationVal && sublistId === "item") {
+      // and line DOESN'T equal the header-level location:
+      if (headerLocationVal !== lineLocationVal) {
+        dialog.alert({
+          title: "Location Warning",
+          message:
+            "line-level location and header-level location values MUST match!",
+        });
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function validateField(context) {
+    currRecord = context.currentRecord;
+    fieldId = context.fieldId;
+    sublistId = context.sublistId;
+
+    headerLocationVal = currRecord.getValue({
+      fieldId: "location",
+    });
+    lineLocationVal = currRecord.getCurrentSublistValue({
+      sublistId: "item",
+      fieldId: "location",
+    });
+    console.log("validateField:", fieldId);
+
+    // if the user adds value to the line-level location:
+    if (lineLocationVal && sublistId === "item") {
+      // and line DOESN'T equal the header-level location:
+      if (headerLocationVal !== lineLocationVal) {
+        dialog.alert({
+          title: "Location Warning",
+          message:
+            "line-level location and header-level location values MUST match!",
+        });
+      }
+      // if no line location value, initiallly set to headerLocationVal
+    } else {
+      currRecord.setCurrentSublistValue({
+        sublistId: "item",
+        fieldId: "location",
+        value: headerLocationVal,
+        ignoreFieldChange: true,
+      });
+    }
+    return true;
   }
 
   function fieldChanged(context) {
@@ -153,11 +183,6 @@ define(["N/ui/dialog"], function (dialog) {
           }
         }
       }
-
-      // items:
-      // 27012;
-      // 27034;
-      // 27320;
     } catch (err) {
       console.log(err);
     }
@@ -166,6 +191,7 @@ define(["N/ui/dialog"], function (dialog) {
     lineInit: lineInit,
     saveRecord: saveRecord,
     validateLine: validateLine,
+    validateField: validateField,
     fieldChanged: fieldChanged,
   };
 });
