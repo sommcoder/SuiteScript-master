@@ -123,6 +123,7 @@ define(["N/ui/dialog"], function (dialog) {
             "line-level location and header-level location values MUST match!",
         });
       }
+
       // if no line location value, initiallly set to headerLocationVal
     } else {
       currRecord.setCurrentSublistValue({
